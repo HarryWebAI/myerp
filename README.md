@@ -1109,3 +1109,52 @@ const resetPassword = () => {
    - 但是, 我们要修改的信息直接存储在`request.user`中
 
 3. 提交成功后, 后端写的是`return Response(data={'messsage':'修改密码成功'})`, 所以应该`ElMessage.success(result.data.message)`, 如果失败则是`ElMessage.error(result.data.detail)`
+
+### 后端: brand 品牌模块
+
+1. 创建 app: `python manage.py startapp brand`, 放进`~/apps/`中
+2. 注册 app: `settings.py`
+3. 编写模型`models.py`, 执行迁移建表, 略
+4. 命令初始化数据
+   - 新建和编辑`~/apps/brand/management/commands/initbrands.py`
+   - 然后`python manage.py initbrands`
+5. 编写序列化器, 继承`ModelSerializer`子类 `Meta` 声明`model`和`fields`
+6. 编写接口(模型视图集): 继承`ModelViewSet`, 声明`queryset`和`serializer_class`
+7. 注册模块路由
+
+```python
+# 导入路由
+from rest_framework.routers import DefaultRouter
+# 导入视图
+from .views import BrandModelViewSet
+
+# 配置应用名称
+app_name = 'brand'
+
+# 实例化路由并注册
+router = DefaultRouter()
+router.register('brand',BrandModelViewSet,basename='brand')
+
+# 拼接在传统路由中
+urlpatterns = [] + router.urls
+```
+
+8. 主路由导入,前缀只有`api/`, 使用`include()`导进来, 略
+9. postman 测试, 略
+   - `GET ./api/brand/` => 获取列表
+   - `GET ./api/brand/<pk>/` => 获取指定行详情
+   - `POST ./api/brand` => 增加一行数据
+   - `PUT ./api/brand/<pk>` => 修改指定行数据
+   - `DELETE ./api/brand/<pk>` => 删除指定行数据
+
+### 后端: category 产品种类模块
+
+    - 跟上面一样, 略
+
+### 后端: 忘记权限认证
+
+- 在 brand 模块和 category 模块的模型视图集接口上,都要求必须登录才可以操作
+  - 导入: `from rest_framework.permissions import IsAuthenticated`
+  - 声明: `permission_classes = [IsAuthenticated]`
+
+> 今天到此为止, 我重写 User 类, 实现了登录, 登出, 以及修改密码功能, 实现了品牌和种类两个视图集接口.
