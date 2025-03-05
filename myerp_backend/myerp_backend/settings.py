@@ -19,11 +19,16 @@ INSTALLED_APPS = [
 
     # 加载drf
     'rest_framework',
-    'apps.staff'  # 员工管理
+    # 加载跨域请求
+    'corsheaders',
+
+    # 开发的应用
+    'apps.staff',  # 员工管理
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -89,3 +94,5 @@ AUTH_USER_MODEL = 'staff.ERPUser'
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': ['apps.staff.authentications.JWTAuthentication']
 }
+
+CORS_ALLOW_ALL_ORIGINS = True
