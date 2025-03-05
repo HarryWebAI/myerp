@@ -74,7 +74,7 @@ const onLogin = () => {
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background: linear-gradient(135deg, #a5acf1, #2b369c);
+  background: linear-gradient(135deg, #2c3e50, #4582be);
 }
 
 .login-box {

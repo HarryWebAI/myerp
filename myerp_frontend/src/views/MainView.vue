@@ -5,6 +5,7 @@ import { ElMessageBox, ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import MainBox from '@/components/MainBox.vue'
 import FormDialog from '@/components/FormDialog.vue'
+import loginHttp from '@/api/loginHttp'
 
 const router = useRouter()
 
@@ -51,23 +52,40 @@ let resetPasswordFormData = reactive({
 })
 const resetPasswordFormRules = reactive({
   old_password: [
-    { required: true, message: '必须填写旧密码', trigger: 'blur' },
-    { min: 6, max: 30, message: '密码长度必须在6~30位之间', trigger: 'blur' },
+    { required: true, message: '必须填写旧密码!', trigger: 'blur' },
+    { min: 6, max: 30, message: '密码长度必须在6~30位之间!', trigger: 'blur' },
   ],
 
   new_password: [
-    { required: true, message: '必须填写旧密码', trigger: 'blur' },
-    { min: 6, max: 30, message: '密码长度必须在6~30位之间', trigger: 'blur' },
+    { required: true, message: '必须填写新密码!', trigger: 'blur' },
+    { min: 6, max: 30, message: '密码长度必须在6~30位之间!', trigger: 'blur' },
   ],
 
   check_new_password: [
-    { required: true, message: '必须填写旧密码', trigger: 'blur' },
-    { min: 6, max: 30, message: '密码长度必须在6~30位之间', trigger: 'blur' },
+    { required: true, message: '务必再次确认新密码!', trigger: 'blur' },
+    { min: 6, max: 30, message: '密码长度必须在6~30位之间!', trigger: 'blur' },
   ],
 })
 
 const resetPassword = () => {
-  console.log(resetPasswordFormData)
+  resetPasswordForm.value.validate((valid, fields) => {
+    if (valid) {
+      loginHttp.resetPassword(resetPasswordFormData, authStore.user.uid).then((result) => {
+        if (result.status == 200) {
+          ElMessage.success(result.data.message)
+          ElMessage.success('请您重新登录!')
+          authStore.clearToken()
+          router.push({ name: 'login' })
+        } else {
+          ElMessage.error(result.data.detail)
+        }
+      })
+    } else {
+      for (let key in fields) {
+        ElMessage.error(fields[key][0]['message'])
+      }
+    }
+  })
 }
 </script>
 
@@ -105,14 +123,16 @@ const resetPassword = () => {
     <el-container class="right-box">
       <!-- 页面头部 -->
       <el-header class="header">
-        <div>
-          <el-button @click="toggleAside" v-show="!isCollapse">
-            <el-icon><Fold /></el-icon>
-          </el-button>
-          <el-button @click="toggleAside" v-show="isCollapse">
-            <el-icon><Expand /></el-icon>
-          </el-button>
-        </div>
+        <el-tooltip content="展开/收起" placement="right" effect="light">
+          <div>
+            <el-button @click="toggleAside" v-show="!isCollapse">
+              <el-icon><Fold /></el-icon>
+            </el-button>
+            <el-button @click="toggleAside" v-show="isCollapse">
+              <el-icon><Expand /></el-icon>
+            </el-button>
+          </div>
+        </el-tooltip>
 
         <div v-if="authStore.isLogined">
           <el-dropdown>

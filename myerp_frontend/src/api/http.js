@@ -39,6 +39,23 @@ class Http {
         })
     )
   }
+
+  put = (path, data) => {
+    return this.instance
+      .put(path, data)
+      .then((response) => {
+        return {
+          status: response.status,
+          data: response.data,
+        }
+      })
+      .catch((error) => {
+        return {
+          status: error.response.status,
+          data: error.response.data,
+        }
+      })
+  }
 }
 
 export default Http

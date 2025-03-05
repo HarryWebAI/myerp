@@ -952,6 +952,28 @@ CORS_ALLOW_CREDENTIALS = True
 '''
 ```
 
+### 前端: 增加路由守卫
+
+- 编辑 `@/routes/index.js`, 给路由增加全局守卫
+
+```js
+import { useAuthStore } from "@/stores/auth";
+import { ElMessage } from "element-plus";
+
+// 在执行任何动作前
+router.beforeEach((to) => {
+  // 获取当前用户信息
+  const authStore = useAuthStore();
+  // 如果没有, 且不是访问 'login' 路由(登录页面)的话
+  if (!authStore.isLogined && to.name != "login") {
+    // 弹出错误
+    ElMessage.error("请先登录!");
+    // 跳转到登录页面
+    return { name: "login" };
+  }
+});
+```
+
 ### 前端: 完善框架页面
 
 1. 组件化: 将重复的代码封装为组件, 通过传入不同的参数实现渲染不同的内容, 分别有:
@@ -964,7 +986,9 @@ CORS_ALLOW_CREDENTIALS = True
    > 这些代码来自上一个项目`myoa`, 具有很好的复用性
 
 2. 主页修改配色, 头部渲染当前用户, 提供下拉菜单(退出登录和重置密码功能), 并导入`MainBox`放在主体部分,略
-3. 退出登录功能: 给退出登录绑定点击事件`@click="logout"`
+3. 退出登录功能:
+
+- 给退出登录绑定点击事件`@click="logout"`
 
 ```js
 /**退出登录 */
@@ -1050,3 +1074,38 @@ const resetPassword = () => {
   console.log(resetPasswordFormData);
 };
 ```
+
+### 后端: staff 模块完成修改密码接口
+
+1. 序列化器: 用户需要传入 3 个字段: 旧密码,新密码,确认新密码, 而我需要在序列化器里实现:
+
+   - 验证新旧密码是否不同
+   - 验证新密码和"再输一遍"的新密码是否相同
+   - 根据当前登录的用户, 验证旧密码是否正确
+
+   > 重点在于如何在序列化器里获取当前登录的用户?
+
+   - 使用`user = self.context['request'].user`获取当前用户
+
+   > 如何传入`context`?
+
+2. 接口: 继承 `APIView`, 定义`put`函数
+   - 函数内部我需要实例化序列化器, 并且通过 context 将带用户信息的请求对象交给序列化器
+   - `serializer = ResetPasswordSerializer(data=request.data, context={'request': request})`
+   - 验证通过, 更新用户信息(request.user.set_password(), save())
+   - 验证失败, 返回错误信息
+3. 路由, 略
+4. postman 测试, 请求头加上认证令牌`Authorization = JWT + 登录接口获取的Token`, 略
+
+### 前端: 修改密码功能
+
+1. 表单验证:配置好验证规则后, 表单 ref 对象调用 validate 函数: `loginForm.value.validate((valid, fields)=>{})`
+   - `{}`内如果验证通过`valid`为真, 提交请求
+   - valid 说明前端验证失败, 遍历错误信息
+2. 提交请求:`http.js`封装 `put()` 函数, 然后`loginHttp.js`完成`resetPassword()`函数:
+
+   - 配置地址, 请求接口
+   - 这里因为接口路由没有指定为`../<uid>`, 所以直接访问`'/staff/reset/'`即可(put 请求按理来说应该传入要修改数据的主键)
+   - 但是, 我们要修改的信息直接存储在`request.user`中
+
+3. 提交成功后, 后端写的是`return Response(data={'messsage':'修改密码成功'})`, 所以应该`ElMessage.success(result.data.message)`, 如果失败则是`ElMessage.error(result.data.detail)`

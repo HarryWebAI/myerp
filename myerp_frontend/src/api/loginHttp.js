@@ -8,4 +8,10 @@ const login = (data) => {
   return http.post(path, data)
 }
 
-export default { login }
+const resetPassword = (data) => {
+  const path = '/staff/reset/'
+
+  return http.put(path, data)
+}
+
+export default { login, resetPassword }

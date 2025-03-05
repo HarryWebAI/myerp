@@ -42,3 +42,29 @@ class StaffSerializer(serializers.ModelSerializer):
     class Meta:
         model = ERPUser
         exclude = ['password', 'groups', 'user_permissions']
+
+
+class ResetPasswordSerializer(serializers.Serializer):
+    """
+    重置密码序列化
+    """
+
+    old_password = serializers.CharField(min_length=6, max_length=30)
+    new_password = serializers.CharField(min_length=6, max_length=30)
+    check_new_password = serializers.CharField(min_length=6, max_length=30)
+
+    def validate(self, attrs):
+        old_password = attrs.get('old_password')
+        new_password = attrs.get('new_password')
+        check_new_password = attrs.get('check_new_password')
+
+        if new_password != check_new_password:
+            raise serializers.ValidationError('两次密码输入不一致!')
+        if new_password == old_password:
+            raise serializers.ValidationError('新旧密码不能相同!')
+
+        user = self.context['request'].user
+        if not user.check_password(old_password):
+            raise serializers.ValidationError('旧密码不正确!')
+
+        return attrs
