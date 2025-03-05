@@ -1,5 +1,6 @@
-from pathlib import Path
 import os
+from pathlib import Path
+
 import environ
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -12,25 +13,18 @@ env = environ.Env()
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 INSTALLED_APPS = [
-    # 'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
-    # 'django.contrib.sessions',
-    # 'django.contrib.messages',
     'django.contrib.staticfiles',
 
     # 加载drf
-    'rest_framework'
-    # 项目app
+    'rest_framework',
+    'apps.staff'  # 员工管理
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    # 'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    # 'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
@@ -58,9 +52,9 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         # env.str(读取值, 默认值)
-        "NAME": env.str('DB_NAME', "myerp"),
-        "USER": env.str('DB_USER', "root"),
-        "PASSWORD": env.str("DB_PASSWORD", "123456"),
+        "NAME": env.str('DB_NAME'),
+        "USER": env.str('DB_USER'),
+        "PASSWORD": env.str("DB_PASSWORD"),
         "HOST": env.str('DB_HOST', 'localhost'),
         "PORT": env.str('DB_PORT', '3306'),
     }
@@ -86,7 +80,12 @@ TIME_ZONE = 'UTC'
 USE_I18N = False
 USE_TZ = False
 
-
 STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+AUTH_USER_MODEL = 'staff.ERPUser'
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': ['apps.staff.authentications.JWTAuthentication']
+}
