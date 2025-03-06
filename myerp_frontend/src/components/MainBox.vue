@@ -1,6 +1,5 @@
 <script setup name="OAMain">
 import BoxHeader from './BoxHeader.vue'
-import { defineProps } from 'vue'
 
 let props = defineProps({
   // eslint-disable-next-line vue/require-prop-type-constructor

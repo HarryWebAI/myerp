@@ -3,7 +3,6 @@ import { ref, reactive } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { ElMessageBox, ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
-import MainBox from '@/components/MainBox.vue'
 import FormDialog from '@/components/FormDialog.vue'
 import loginHttp from '@/api/loginHttp'
 
@@ -84,13 +83,14 @@ const resetPassword = () => {
       for (let key in fields) {
         ElMessage.error(fields[key][0]['message'])
       }
+      return
     }
   })
 }
 </script>
 
 <template>
-  <el-container>
+  <el-container class="main-container">
     <!-- 导航部分 -->
     <el-menu
       class="side-bar"
@@ -99,28 +99,56 @@ const resetPassword = () => {
       background-color="#2C3E50"
       default-active="1"
       :collapse="isCollapse"
+      :router="true"
     >
       <!-- logo -->
-      <el-menu-item index="1" class="brand">
-        <router-link to="/" class="brand-logo">
-          <el-icon><HomeFilled /></el-icon>
-          <span v-show="!isCollapse">myerp</span>
-        </router-link>
+      <el-menu-item index="1" class="brand" :route="{ name: 'home' }">
+        <el-icon><HomeFilled /></el-icon>
+        <span v-show="!isCollapse">myerp</span>
       </el-menu-item>
 
-      <!-- 菜单 -->
-      <el-sub-menu index="2">
+      <el-menu-item index="2" :route="{ name: 'brandandcategory' }">
+        <el-icon><Menu /></el-icon>
+        <span>品牌种类</span>
+      </el-menu-item>
+
+      <el-sub-menu index="3">
         <template #title>
-          <el-icon><location /></el-icon>
-          <span>导航占位1</span>
+          <el-icon><Grid /></el-icon>
+          <span>商品库存</span>
         </template>
-        <el-menu-item index="2-1">1-1</el-menu-item>
-        <el-menu-item index="2-2">1-2</el-menu-item>
+        <el-menu-item index="3-1">
+          <el-icon><Upload /></el-icon>
+          <span>申请发货</span>
+        </el-menu-item>
+        <el-menu-item index="3-2">
+          <el-icon><Download /></el-icon>
+          <span>收货入库</span>
+        </el-menu-item>
+        <el-menu-item index="3-3">
+          <el-icon><List /></el-icon>
+          <span>库存管理</span>
+        </el-menu-item>
+        <el-menu-item index="3-4">
+          <el-icon><Goods /></el-icon>
+          <span>商品列表</span>
+        </el-menu-item>
+      </el-sub-menu>
+
+      <el-sub-menu index="4">
+        <template #title>
+          <el-icon><Money /></el-icon>
+          <span>订单管理</span>
+        </template>
+        <el-menu-item index="4-1">
+          <el-icon><CirclePlus /></el-icon>
+          <span>新增订单</span>
+        </el-menu-item>
       </el-sub-menu>
     </el-menu>
 
-    <!-- 主体部分 -->
-    <el-container class="right-box">
+    <!-- 页面主体 -->
+    <el-container class="main-body">
       <!-- 页面头部 -->
       <el-header class="header">
         <el-tooltip content="展开/收起" placement="right" effect="light">
@@ -156,8 +184,8 @@ const resetPassword = () => {
         </div>
       </el-header>
 
-      <!-- 页面主体 -->
-      <MainBox title="主页"></MainBox>
+      <!-- 主体内容 -->
+      <el-main><router-view></router-view></el-main>
     </el-container>
   </el-container>
 
@@ -183,28 +211,21 @@ const resetPassword = () => {
 </template>
 
 <style scoped>
-.side-bar {
+.main-container {
+  background-color: #fdfdfd;
   height: 100vh;
 }
 .brand {
   height: 80px;
+  font-size: large;
+  font-weight: bold;
   background-color: #233241;
 }
-.brand-logo {
-  text-decoration: none;
-  font-size: 25px;
-  font-weight: bold;
-  color: #fff;
-}
-.right-box {
-  background-color: #fdfdfd;
-}
 .header {
+  height: 80px;
   background-color: #fff;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  height: 80px;
-  margin-bottom: 20px;
 }
 </style>

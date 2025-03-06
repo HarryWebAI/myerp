@@ -1,6 +1,4 @@
 <script setup>
-import { defineProps } from 'vue'
-
 // 定义v-model: 是否展示对话框, 由外面决定所以要用 v-model进行绑定
 let dialogVisible = defineModel({ required: true })
 

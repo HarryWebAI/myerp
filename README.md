@@ -468,95 +468,7 @@ for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
 app.mount("#app");
 ```
 
-3. 新建`@/views/MainView.vue` (页面可复用)
-
-```vue
-<script setup>
-import { ref } from "vue";
-/**侧边栏 */
-let isCollapse = ref(false);
-
-const toggleAside = () => {
-  isCollapse.value = !isCollapse.value;
-};
-</script>
-
-<template>
-  <el-container>
-    <!-- 导航部分 -->
-    <el-menu
-      class="side-bar"
-      text-color="#fff"
-      active-text-color="#ffd04b"
-      background-color="#1276af"
-      default-active="1"
-      :collapse="isCollapse"
-    >
-      <!-- logo -->
-      <el-menu-item index="1" class="brand">
-        <router-link to="/" class="brand-logo">
-          <el-icon><HomeFilled /></el-icon>
-          <span v-show="!isCollapse">myerp</span>
-        </router-link>
-      </el-menu-item>
-
-      <!-- 菜单 -->
-      <el-sub-menu index="2">
-        <template #title>
-          <el-icon><location /></el-icon>
-          <span>导航占位1</span>
-        </template>
-        <el-menu-item index="2-1">1-1</el-menu-item>
-        <el-menu-item index="2-2">1-2</el-menu-item>
-      </el-sub-menu>
-    </el-menu>
-
-    <!-- 主体部分 -->
-    <el-container>
-      <!-- 页面头部 -->
-      <el-header class="header">
-        <div>
-          <el-button @click="toggleAside" v-show="!isCollapse">
-            <el-icon><Fold /></el-icon>
-          </el-button>
-          <el-button @click="toggleAside" v-show="isCollapse">
-            <el-icon><Expand /></el-icon>
-          </el-button>
-        </div>
-
-        <div>
-          <p>用户信息相关</p>
-        </div>
-      </el-header>
-      <!-- 页面主体 -->
-      <el-main class="main">我是主体</el-main>
-    </el-container>
-  </el-container>
-</template>
-
-<style scoped>
-.side-bar {
-  height: 100vh;
-}
-.brand {
-  height: 100px;
-  background-color: #034855;
-}
-.brand-logo {
-  text-decoration: none;
-  font-size: 25px;
-  font-weight: bold;
-  color: #fff;
-}
-.header {
-  background-color: red;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  height: 100px;
-}
-</style>
-```
+3. 新建`@/views/MainView.vue`, 略
 
 4. 整理路由文件`@/router/index.js`:
 
@@ -926,7 +838,7 @@ CORS_ALLOW_ALL_ORIGINS = True  # 开发阶段暂时允许所有域名跨域请�
 
 '''
 # 实际投入使用时应该配置:
-CORS_ALLOW_ALL_ORIGINS = False  # 默认情况下，禁用所有跨域请求
+CORS_ALLOW_ALL_ORIGINS = False  # 默认情况下,禁用所有跨域请求
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  # 前端vue默认的的URL
 ]
@@ -978,10 +890,10 @@ router.beforeEach((to) => {
 
 1. 组件化: 将重复的代码封装为组件, 通过传入不同的参数实现渲染不同的内容, 分别有:
 
-   - `@components/MainBox.vue`: 内容主体容器(所需参数:`title`)
-   - `@components/BoxHeader.vue`: 作为 MainBox 的子组件渲染主体头部(返回按键和页面标题)
-   - `@FormDialog.vue`: 表单对话框(所需参数:`v-model`=>表单开关属性 ref, `title`="对话框标题", `@submit`="绑定提交函数")
-   - `@PaginationView.vue`: 分页器(所需参数:`:page_size`=>每页多少条数据, `:total`=>一共多少条数据, `v-model`=>当前页数 )
+   - `@/components/MainBox.vue`: 内容主体容器(所需参数:`title`)
+   - `.../BoxHeader.vue`: 作为 MainBox 的子组件渲染主体头部(返回按键和页面标题)
+   - `.../FormDialog.vue`: 表单对话框(所需参数:`v-model`=>表单开关属性 ref, `title`="对话框标题", `@submit`="绑定提交函数")
+   - `.../PaginationView.vue`: 分页器(所需参数:`:page_size`=>每页多少条数据, `:total`=>一共多少条数据, `v-model`=>当前页数 )
 
    > 这些代码来自上一个项目`myoa`, 具有很好的复用性
 
@@ -1149,7 +1061,7 @@ urlpatterns = [] + router.urls
 
 ### 后端: category 产品种类模块
 
-    - 跟上面一样, 略
+- 跟上面一样, 略
 
 ### 后端: 忘记权限认证
 
@@ -1158,3 +1070,721 @@ urlpatterns = [] + router.urls
   - 声明: `permission_classes = [IsAuthenticated]`
 
 > 今天到此为止, 我重写 User 类, 实现了登录, 登出, 以及修改密码功能, 实现了品牌和种类两个视图集接口.
+
+### 前端:处理布局问题
+
+- 正确的前端框架页面布局应该是:
+
+```html
+<template>
+  <!-- 最外层一个 container 包所有元素, 设置高度为视窗100% 设置整体背景颜色 -->
+  <el-container style="height: 100vh; background-color: #???;">
+    <el-menu>
+      <!-- 侧边导航条...el-menu -->
+    </el-menu>
+
+    <!-- 主体 -->
+    <el-container>
+      <!-- 头部 -->
+      <el-header></el-header>
+      <!-- 内容 -->
+      <el-main>
+        <!-- 内容通常是一个路由出口 -->
+      </el-main>
+    </el-container>
+  </el-container>
+</template>
+```
+
+- 之前我只把侧边导航条高度设置为`100vh`, 发现当内容部分超过浏览器高度时, 导航条并未占满整体视窗高度.
+- 然后增加一个内容为(`<h1>首页</h1>`)的视图`@/views/home/HomeView.vue`
+- 将其路由在`@/router/index.js`中声明为`{path:'', name:'home', component: 导入的视图组件}`
+- 这样访问首页至少知道在首页了
+
+### 前端: 品牌和种类管理
+
+> 这些代码复用性很强,值得收藏避免反复写
+
+1. 完整的接口请求封装类: `@/api/http.js`
+
+```js
+// 导入axios和Pinia.auth
+import axios from "axios";
+import { useAuthStore } from "@/stores/auth";
+
+// 定义Http类
+class Http {
+  // 构造函数
+  constructor() {
+    // 实例构造时成为一个axios实体
+    this.instance = axios.create({
+      // 请求基础地址位于 `~/.env` 文件中, 会根据不同的环境访问同名变量 [VITE_BASE_URL]
+      baseURL: import.meta.env.VITE_BASE_URL,
+      // 请求超时时间为10s
+      timeout: 10000,
+    });
+
+    // 在发起任何请求前先拦截一下, 我们还得给请求做额外配置
+    this.instance.interceptors.request.use((config) => {
+      // 先尝试获取浏览器存储的认证令牌数据
+      const authStore = useAuthStore();
+      const token = authStore.token;
+      // 如果令牌存在
+      if (token) {
+        // 给请求头配置字段 Authorization = JWT + 认证令牌
+        config.headers.Authorization = "JWT" + " " + authStore.token;
+      }
+      return config;
+    });
+  }
+
+  // http.post函数, 需要传入参数(请求路由, 表单数据)
+  post = async (path, data) => {
+    try {
+      // 使用axios.post发起请求
+      const response = await this.instance.post(path, data);
+      // 成功则返回 {状态码, 新创建的数据}
+      return {
+        status: response.status,
+        data: response.data,
+      };
+    } catch (error) {
+      // 失败则返回 {状态码, drf.Response返回的data}
+      return {
+        status: error.response.status,
+        data: error.response.data, // 本项目约定, 服务器端发生错误时, 返回的错误详情用 detail 表示 (data.detail)
+      };
+    }
+  };
+
+  // put请求, 同样需要传入参数(路由, 数据)
+  // 在调用put前, 请务必拼接正确的path: (.../<pk>)
+  put = async (path, data) => {
+    try {
+      const response = await this.instance.put(path, data);
+      return {
+        status: response.status,
+        data: response.data,
+      };
+    } catch (error) {
+      return {
+        status: error.response.status,
+        data: error.response.data,
+      };
+    }
+  };
+
+  // get请求, param参数可选
+  get = async (path, param) => {
+    try {
+      // 注意param外面加上{} 将其转为对象, 这样路由地址就是 (.../?param.key=param.value&p.k=p.v&...)
+      const response = await this.instance.get(path, { param });
+      return {
+        status: response.status,
+        data: response.data,
+      };
+    } catch (error) {
+      return {
+        status: error.response.status,
+        data: error.response.data,
+      };
+    }
+  };
+
+  // delete请求, 调用时需要配置正确的path: (.../<pk>)
+  delete = async (path) => {
+    try {
+      const response = await this.instance.delete(path);
+      return {
+        status: response.status,
+        data: response.data,
+      };
+    } catch (error) {
+      return {
+        status: error.response.status,
+        data: error.response.data,
+      };
+    }
+  };
+}
+
+export default Http;
+```
+
+2. 完整的品牌和种类管理请求封装`@/api/brandAndCategoryHttp.js`
+
+```js
+// 导入Http
+import Http from "./http";
+
+// 实例化http
+const http = new Http();
+
+// 定义可以操作的模型列表
+const models = ["brand", "category"];
+
+// 请求: 获得所有品牌数据
+const requesetBrandData = () => {
+  // 配置接口路由
+  const path = `/brand/`;
+
+  // 调取 http.get() 请求接口路由
+  return http.get(path);
+};
+
+// 请求: 获得所有种类数据
+const requesetCategoryData = () => {
+  const path = `/category/`;
+
+  return http.get(path);
+};
+
+// 编辑
+const editData = (model, data) => {
+  // 先用一个外部变量存放path
+  let path = "";
+  // 如果传入的model在可操作的模型列表中
+  if (models.includes(model)) {
+    // 拼接路由
+    path = `/${model}/${data.id}/`;
+    // 并请求接口
+    return http.put(path, data);
+  }
+
+  // 否则禁止操作
+  console.error("错误的请求!");
+  return false;
+};
+
+// 删除同样的逻辑, 不过这里直接传入id即可, 不需要通过传入整行数据, 再用data.id读取
+const deleteData = (model, id) => {
+  let path = "";
+  if (models.includes(model)) {
+    path = `${model}/${id}/`;
+    return http.delete(path);
+  }
+
+  console.error("错误的请求!");
+  return false;
+};
+
+const createData = (model, data) => {
+  let path = "";
+  if (models.includes(model)) {
+    path = `/${model}/`;
+    return http.post(path, data);
+  }
+
+  console.error("错误的请求!");
+  return false;
+};
+
+export default {
+  requesetBrandData,
+  requesetCategoryData,
+  editData,
+  deleteData,
+  createData,
+};
+```
+
+3. 创建视图`@/brandAndCategory/BrandAndCategoryView.vue`
+
+```vue
+<script setup>
+// 导入组件
+import MainBox from "@/components/MainBox.vue";
+import FormDialog from "@/components/FormDialog.vue";
+// 导入api请求函数封建文件
+import brandAndCategoryHttp from "@/api/brandAndCategoryHttp";
+// 导入响应式变量定义函数和生命周期函数
+import { ref, onMounted, reactive } from "vue";
+// 导入element-plus提供的组件
+import { ElMessage, ElMessageBox } from "element-plus";
+
+/**获取数据 */
+// 先定义两个空的响应式数组
+let brands = ref([]);
+let categories = ref([]);
+
+// 在生命周期-挂载后自动执行
+onMounted(() => {
+  // 请求后端接口, 分别获取品牌, 种类数据, 用 _result存储响应结果(这时 _result 是一个 Promise 对象)
+  let brands_result = brandAndCategoryHttp.requesetBrandData();
+  let categories_result = brandAndCategoryHttp.requesetCategoryData();
+  // 如果有响应, 判断返回的状态码
+  brands_result.then((result) => {
+    // 如果是状态码是200, 说明响应成功
+    if (result.status == 200) {
+      // 将数据交给先前定义好的空数组
+      brands.value = result.data;
+    } else {
+      // 如果状态码不是200, 说明服务器收到请求, 但服务器没有正确响应
+      // console.log(result) // 可以通过打印result查看状态码和错误详情
+      // 但投入使用后, 不应该给客户端暴露过多的服务器返回的信息, 万一客户端发出的请求就是恶意的,带攻击性质的呢?
+      // 所以直接返回错误提示
+      ElMessage.error("请求数据失败!");
+    }
+  });
+  // Promise对象如果请求没有成功(服务器那边压根没收到), 可以用 .catch() 获取客户端这边的错误信息, 我这里没有写, 因为一般不会出现这样的问题
+
+  // 种类同理
+  categories_result.then((result) => {
+    if (result.status == 200) {
+      categories.value = result.data;
+    } else {
+      ElMessage.error("请求数据失败!");
+    }
+  });
+});
+
+/**品牌表单 */
+// 表单5件套: let 表单开关, let 表单数据, const 表单ref, const表单验证规则,  const表单提交函数
+//开关
+let brandFormVisable = ref(false);
+//数据
+let brandFormData = reactive({
+  id: 0,
+  name: "",
+  intro: "",
+});
+//ref
+const brandForm = ref();
+//验证规则
+const brandFormRules = reactive({
+  name: [
+    { required: true, message: "必须填写品牌名称!", trigger: "blue" },
+    { min: 2, max: 10, message: "品牌名称必须2~10个字!", trigger: "blur" },
+  ],
+  intro: [
+    { required: true, message: "必须填写品牌简介!", trigger: "blue" },
+    { min: 2, max: 100, message: "品牌简介必须2~100个字!", trigger: "blur" },
+  ],
+});
+// 提交函数
+const editBrand = () => {
+  // 先用 ref.value.validate 验证表单数据是否符合表单验证规则, 回调的(valid是布尔值验证通过则为真, fields是错误字段)
+  brandForm.value.validate((valid, fields) => {
+    // 如果验证成功
+    if (valid) {
+      // 开始请求服务器
+      brandAndCategoryHttp.editData("brand", brandFormData).then((result) => {
+        // 如果返回的状态码是200, 说明修改成功
+        if (result.status == 200) {
+          // 通过修改成功后返回的数据的主键id,找到该id位于数组中的未知
+          let index = brands.value.findIndex(
+            (brand) => brand.id === result.data.id
+          );
+          // 使用 splice 函数,替换该位置为新数据
+          brands.value.splice(index, 1, result.data);
+          // 关闭表单
+          brandFormVisable.value = false;
+          // 提示修改成功
+          ElMessage.success("品牌修改成功!");
+        } else {
+          // 如果状态码不是200, 则说明修改失败
+          ElMessage.error("修改失败!");
+        }
+      });
+    } else {
+      // 如果表单前端验证没有通过, 则遍历fields, 展示错误信息
+      for (let key in fields) {
+        ElMessage.error(fields[key][0]["message"]);
+      }
+      return;
+    }
+  });
+};
+
+/**种类表单 */
+// 同理
+let categoryFormVisable = ref(false);
+let categoryFormData = reactive({
+  id: 0,
+  name: "",
+});
+const categoryForm = ref();
+const categoryFormRules = reactive({
+  name: [
+    { required: true, message: "必须填写商品种类!", trigger: "blue" },
+    { min: 2, max: 10, message: "种类名称只能2~10个字!", trigger: "blur" },
+  ],
+});
+
+const editCategory = () => {
+  categoryForm.value.validate((valid, fields) => {
+    if (valid) {
+      brandAndCategoryHttp
+        .editData("category", categoryFormData)
+        .then((result) => {
+          if (result.status == 200) {
+            let index = categories.value.findIndex(
+              (category) => category.id === result.data.id
+            );
+            categories.value.splice(index, 1, result.data);
+            categoryFormVisable.value = false;
+            ElMessage.success("种类修改成功!");
+          } else {
+            ElMessage.error("修改失败!");
+          }
+        });
+    } else {
+      for (let key in fields) {
+        ElMessage.error(fields[key][0]["message"]);
+      }
+      return;
+    }
+  });
+};
+
+/**编辑表单开关 */
+// 表单开关进行了简单的封装, 多一个参数form, 也就是要打开的表单名称
+const openForm = (form, data) => {
+  // 如果要打开brand表单
+  if (form == "brand") {
+    // 通过 Object.assign 匹配两个对象的共有属性, 将后者的对应值赋给前者
+    Object.assign(brandFormData, data);
+    // 显示表单
+    brandFormVisable.value = true;
+  } else if (form == "category") {
+    // 如果要打开category表单...
+    Object.assign(categoryFormData, data);
+    categoryFormVisable.value = true;
+  } else {
+    // 如果没有传入正确的参数
+    ElMessage.error("错误!没有找到对应行为!");
+  }
+};
+
+/**删除功能 */
+// 同样进行简单的封装, 删除指定模型下指定id的数据
+const onDelete = (model, id) => {
+  // 采用Element-plus.ElmessageBox.confirm组件实现
+  // "提示内容", "提示信息"
+  ElMessageBox.confirm("确认删除该条数据?", "确认删除?", {
+    // 确认按键文本
+    confirmButtonText: "确认",
+    // 取消按键文本
+    cancelButtonText: "取消",
+    // 提示类型
+    type: "warning",
+  })
+    .then(() => {
+      // 如果点击确认,则会回调.then()函数
+      // 调用封装好的函数接口(指定要删除的模型, 指定要删除的主键)
+      brandAndCategoryHttp.deleteData(model, id).then((result) => {
+        // 注意: 删除成功将返回204而不是200
+        if (result.status == 204) {
+          ElMessage.success("成功删除!");
+          // 0.5秒后刷新窗口(给提示信息展示时间)
+          setTimeout(() => {
+            window.location.reload();
+          }, 500);
+        } else {
+          // 如果不是204, 说明删除失败
+          ElMessage.error("删除失败!");
+        }
+      });
+    })
+    .catch(() => {
+      // 如果用户点击取消
+      ElMessage.info("取消删除!");
+    });
+};
+
+/**新增功能_品牌 */
+// 表单老五样
+let addBrandFormVisable = ref(false);
+let addBrandFormData = reactive({
+  name: "",
+  intro: "",
+});
+const addBrandForm = ref();
+// 这里的规则直接采用上面定义好的
+const createBrand = () => {
+  // 逻辑和编辑差不多
+  brandAndCategoryHttp.createData("brand", addBrandFormData).then((result) => {
+    if (result.status == 201) {
+      // 通过 array.push() 给数组末尾添加元素
+      // 也可以 .unshift 添加在最前面
+      brands.value.push(result.data);
+      addBrandFormVisable.value = false;
+      ElMessage.success("新增品牌成功!");
+    } else {
+      ElMessage.error("错误!");
+    }
+  });
+};
+
+/**新增功能_种类 */
+// 同理
+let addCategoryFormVisable = ref(false);
+let addCategoryFormData = reactive({
+  name: "",
+});
+const addCategoryForm = ref();
+const createCategory = () => {
+  brandAndCategoryHttp
+    .createData("category", addCategoryFormData)
+    .then((result) => {
+      if (result.status == 201) {
+        categories.value.push(result.data);
+        addCategoryFormVisable.value = false;
+        ElMessage.success("新增种类成功!");
+      } else {
+        ElMessage.error("错误!");
+      }
+    });
+};
+
+/**新增表单开关 */
+// 简单封装, 需要指定打开的表单
+const openAddform = (form) => {
+  if (form == "brand") {
+    // 打开后清空数据
+    addBrandFormData.name = "";
+    addBrandFormData.intro = "";
+    addBrandFormVisable.value = true;
+  } else if (form == "category") {
+    addCategoryFormData.name = "";
+    addCategoryFormVisable.value = true;
+  } else {
+    ElMessage.error("错误!没有找到对应行为!");
+  }
+};
+</script>
+
+<template>
+  <!-- 使用组件需要先导入 -->
+  <MainBox title="品牌和种类管理">
+    <!-- 定义一个css类,为了使用flex布局使两组 el-card 分列左右布局 -->
+    <div class="main-body">
+      <el-card class="body-card">
+        <template #header>
+          <!-- 同理, 该css类也为了两个块级元素h3(标题)和div(包裹新增按钮的容器)实现flex布局 -->
+          <div class="card-header">
+            <h3>品牌</h3>
+            <div>
+              <!-- 绑定点击事件, 打开brand新增表 -->
+              <el-button type="success" @click="openAddform('brand')">
+                <el-icon><Plus /></el-icon>
+                <span>新增品牌</span>
+              </el-button>
+            </div>
+          </div>
+        </template>
+        <!-- el-table, :data=数组,可以自动遍历数组展示诗句 -->
+        <el-table :data="brands">
+          <!-- el-table-column, prop="数组里面单条数据的某个属性" label="相当于设置表头thead" -->
+          <el-table-column prop="name" label="名称" />
+          <!-- min-width="设置最小宽度<int>" align="设置内容的位置(left, center, right)" -->
+          <el-table-column
+            prop="intro"
+            label="简介"
+            min-width="140"
+            align="center"
+          />
+          <!-- width="设置绝对宽度" fixed="设置始终显示,如果设置fixed不指定right, 那么默认值是left" -->
+          <el-table-column
+            label="操作"
+            width="120"
+            align="center"
+            fixed="right"
+          >
+            <!-- 当需要获取这一行的某些数据时, 可以不在 -column 上指定prop -->
+            <!-- 而是使用默认插槽 -->
+            <template #default="scope">
+              <div class="table-btn-group">
+                <div>
+                  <el-tooltip content="编辑" placement="top" effect="light">
+                    <!-- 通过 scope.row 就可以获取当前行的所有属性(完整的对象) -->
+                    <el-button
+                      type="primary"
+                      @click="openForm('brand', scope.row)"
+                    >
+                      <el-icon><Edit /></el-icon>
+                    </el-button>
+                  </el-tooltip>
+                </div>
+                <div>
+                  <el-tooltip content="删除" placement="top" effect="light">
+                    <!-- 还可以获取当前行数据的指定属性: scope.row.id -->
+                    <el-button
+                      type="danger"
+                      @click="onDelete('brand', scope.row.id)"
+                    >
+                      <el-icon><Delete /></el-icon>
+                    </el-button>
+                  </el-tooltip>
+                </div>
+              </div>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-card>
+
+      <!-- 和上面同理 -->
+      <el-card class="body-card">
+        <template #header>
+          <div class="card-header">
+            <h3>品牌</h3>
+            <div>
+              <el-button type="success" @click="openAddform('category')">
+                <el-icon><Plus /></el-icon>
+                <span>新增种类</span>
+              </el-button>
+            </div>
+          </div>
+        </template>
+        <el-table :data="categories">
+          <el-table-column prop="name" label="名称" />
+          <el-table-column
+            label="操作"
+            width="120"
+            align="center"
+            fixed="right"
+          >
+            <template #default="scope">
+              <div class="table-btn-group">
+                <div>
+                  <el-tooltip content="编辑" placement="top" effect="light">
+                    <el-button
+                      type="primary"
+                      @click="openForm('category', scope.row)"
+                    >
+                      <el-icon><Edit /></el-icon>
+                    </el-button>
+                  </el-tooltip>
+                </div>
+                <div>
+                  <el-tooltip content="删除" placement="top" effect="light">
+                    <el-button
+                      type="danger"
+                      @click="onDelete('category', scope.row.id)"
+                    >
+                      <el-icon><Delete /></el-icon>
+                    </el-button>
+                  </el-tooltip>
+                </div>
+              </div>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-card>
+    </div>
+  </MainBox>
+
+  <!-- 品牌编辑表单 -->
+  <!-- 详情见组件(@/components/FormDialog.vue)v-model=表单开关属性, @submit="表单提交函数" -->
+  <FormDialog
+    v-model="brandFormVisable"
+    title="修改品牌信息"
+    @submit="editBrand"
+  >
+    <!-- el-form ref="表单ref" :model="表单数据" :rules="表单验证规则" -->
+    <el-form ref="brandForm" :model="brandFormData" :rules="brandFormRules">
+      <!-- prop="验证规则里定义的属性名称, 应与表单数据.属性对应" -->
+      <el-form-item label="品牌名称" prop="name">
+        <!-- v-model="表单数据.具体数据" -->
+        <el-input type="text" v-model="brandFormData.name" />
+      </el-form-item>
+      <el-form-item label="品牌简介" prop="intro">
+        <el-input type="text" v-model="brandFormData.intro" />
+      </el-form-item>
+    </el-form>
+  </FormDialog>
+
+  <!-- 种类编辑表单,同上 -->
+  <FormDialog
+    v-model="categoryFormVisable"
+    title="编辑商品种类"
+    @submit="editCategory"
+  >
+    <el-form
+      ref="categoryForm"
+      :model="categoryFormData"
+      :rules="categoryFormRules"
+    >
+      <el-form-item label="种类名称" prop="name">
+        <el-input type="text" v-model="categoryFormData.name" />
+      </el-form-item>
+    </el-form>
+  </FormDialog>
+
+  <!-- 新增品牌表单 -->
+  <FormDialog
+    v-model="addBrandFormVisable"
+    title="新增品牌"
+    @submit="createBrand"
+  >
+    <el-form
+      ref="addBrandForm"
+      :model="addBrandFormData"
+      :rules="brandFormRules"
+    >
+      <el-form-item label="品牌名称" prop="name">
+        <el-input type="text" v-model="addBrandFormData.name" />
+      </el-form-item>
+      <el-form-item label="品牌简介" prop="intro">
+        <el-input type="text" v-model="addBrandFormData.intro" />
+      </el-form-item>
+    </el-form>
+  </FormDialog>
+  <!-- 新增种类表单 -->
+  <FormDialog
+    v-model="addCategoryFormVisable"
+    title="新增种类"
+    @submit="createCategory"
+  >
+    <el-form
+      ref="addCategoryForm"
+      :model="addCategoryFormData"
+      :rules="categoryFormRules"
+    >
+      <el-form-item label="种类名称" prop="name">
+        <el-input type="text" v-model="addCategoryFormData.name" />
+      </el-form-item>
+    </el-form>
+  </FormDialog>
+</template>
+
+<style scoped>
+.main-body,
+.card-header,
+.table-btn-group {
+  /* 块级元素内部子元素同行左右对齐: flex布局实现 */
+  display: flex;
+  justify-content: space-between;
+}
+.body-card {
+  /* 给两个card设置宽度和最小高度 */
+  width: 49.5%;
+  min-height: 888px;
+}
+</style>
+```
+
+4. 指定路由, 并且在框架页面绑定
+
+```html
+<!-- 首先要给侧边菜单栏指定 :router="true" 表示其具有路由导航的能力 -->
+<el-menu :router="true">
+  <!-- 然后告诉指定路由 :route="{name:'路由配置里写的路由名称'}" -->
+  <el-menu-item index="1" class="brand" :route="{ name: 'home' }">
+    <!-- ... -->
+  </el-menu-item>
+
+  <!-- 对于有下拉子菜单的路由 -->
+  <el-sub-menu index="2">
+    <template #title>
+      <!-- 父菜单文本 -->
+    </template>
+    <!-- 也是在 el-menu-item 上指定 -->
+    <el-menu-item index="2-1" :route="{ name: 'brandandcategory' }">
+      <!-- 子菜单文本 -->
+    </el-menu-item>
+  </el-sub-menu>
+</el-menu>
+```
+
+5. 顺带把菜单栏完善了(商品库存,订单管理等模块在侧边栏上先把导航按钮画出来), 略

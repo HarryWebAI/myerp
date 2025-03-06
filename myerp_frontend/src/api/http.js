@@ -18,43 +18,64 @@ class Http {
     })
   }
 
-  post = (path, data) => {
-    return (
-      this.instance
-        // 传输数据
-        .post(path, data)
-        // 如果成功(200)
-        .then((response) => {
-          return {
-            status: response.status,
-            data: response.data,
-          }
-        })
-        // 如果失败(非200)
-        .catch((error) => {
-          return {
-            status: error.response.status,
-            data: error.response.data,
-          }
-        })
-    )
+  post = async (path, data) => {
+    try {
+      const response = await this.instance.post(path, data)
+      return {
+        status: response.status,
+        data: response.data,
+      }
+    } catch (error) {
+      return {
+        status: error.response.status,
+        data: error.response.data,
+      }
+    }
   }
 
-  put = (path, data) => {
-    return this.instance
-      .put(path, data)
-      .then((response) => {
-        return {
-          status: response.status,
-          data: response.data,
-        }
-      })
-      .catch((error) => {
-        return {
-          status: error.response.status,
-          data: error.response.data,
-        }
-      })
+  put = async (path, data) => {
+    try {
+      const response = await this.instance.put(path, data)
+      return {
+        status: response.status,
+        data: response.data,
+      }
+    } catch (error) {
+      return {
+        status: error.response.status,
+        data: error.response.data,
+      }
+    }
+  }
+
+  get = async (path, param) => {
+    try {
+      const response = await this.instance.get(path, { param })
+      return {
+        status: response.status,
+        data: response.data,
+      }
+    } catch (error) {
+      return {
+        status: error.response.status,
+        data: error.response.data,
+      }
+    }
+  }
+
+  delete = async (path) => {
+    try {
+      const response = await this.instance.delete(path)
+      return {
+        status: response.status,
+        data: response.data,
+      }
+    } catch (error) {
+      return {
+        status: error.response.status,
+        data: error.response.data,
+      }
+    }
   }
 }
 

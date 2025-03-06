@@ -41,6 +41,7 @@ const onLogin = () => {
       for (let key in fields) {
         ElMessage.error(fields[key][0]['message'])
       }
+      return
     }
   })
 }

@@ -1,6 +1,4 @@
 <script setup>
-import { defineProps } from 'vue'
-
 let props = defineProps({
   // eslint-disable-next-line vue/require-prop-type-constructor
   page_size: 0,
