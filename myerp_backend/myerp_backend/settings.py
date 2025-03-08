@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     'apps.staff',  # 员工管理
     'apps.brand',  # 品牌管理
     'apps.category',  # 产品种类管理
+    'apps.inventory',
 ]
 
 MIDDLEWARE = [

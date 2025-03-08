@@ -48,9 +48,10 @@ class Http {
     }
   }
 
-  get = async (path, param) => {
+  get = async (path, params) => {
+    console.log(params)
     try {
-      const response = await this.instance.get(path, { param })
+      const response = await this.instance.get(path, { params })
       return {
         status: response.status,
         data: response.data,

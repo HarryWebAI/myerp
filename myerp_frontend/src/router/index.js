@@ -5,6 +5,7 @@ import MainView from '@/views/MainView.vue'
 import LoginView from '@/views/LoginView.vue'
 import HomeView from '@/views/home/HomeView.vue'
 import BrandAndCategoryView from '@/views/brandAndCategory/BrandAndCategoryView.vue'
+import InventoryList from '@/views/inventory/InventoryList.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -23,6 +24,16 @@ const router = createRouter({
           path: 'brandandcategory',
           name: 'brandandcategory',
           component: BrandAndCategoryView,
+        },
+        {
+          path: 'inventory',
+          children: [
+            {
+              path: 'list',
+              name: 'inventory_list',
+              component: InventoryList,
+            },
+          ],
         },
       ],
     },

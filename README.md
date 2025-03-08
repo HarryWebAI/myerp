@@ -1101,6 +1101,8 @@ urlpatterns = [] + router.urls
 - 将其路由在`@/router/index.js`中声明为`{path:'', name:'home', component: 导入的视图组件}`
 - 这样访问首页至少知道在首页了
 
+# 开发日志 D02
+
 ### 前端: 品牌和种类管理
 
 > 这些代码复用性很强,值得收藏避免反复写
@@ -1174,11 +1176,11 @@ class Http {
     }
   };
 
-  // get请求, param参数可选
-  get = async (path, param) => {
+  // get请求, params参数可选
+  get = async (path, params) => {
     try {
       // 注意param外面加上{} 将其转为对象, 这样路由地址就是 (.../?param.key=param.value&p.k=p.v&...)
-      const response = await this.instance.get(path, { param });
+      const response = await this.instance.get(path, { params });
       return {
         status: response.status,
         data: response.data,
@@ -1788,3 +1790,330 @@ const openAddform = (form) => {
 ```
 
 5. 顺带把菜单栏完善了(商品库存,订单管理等模块在侧边栏上先把导航按钮画出来), 略
+
+# 开发日志 D03
+
+### 创建分支:
+
+- 在根目录`/myerp`执行这条 git 指令: `git checkout -b inventory`: 创建并切换到 inventory 分支
+
+- 这样做是为了: 不影响 master 分支上的内容
+
+### 后端: 库存管理模块的模型
+
+> 没有设置品牌和种类名称的唯一约束,app_nama 错误, intgerfield 不能设置 max_length, 误删 migrations/路径导致无法创建迁移
+
+1. 填坑: 在品牌和种类表创建时, 没有给两者的名称设置唯一约束, 更正为: `name = models.CharField(max_length=10, unique=True)`
+2. 发现`cateogory`模块的 app_name 设置成了`brand`,纠错(复制粘贴导致的)
+
+3. 进入后端路径`/myerp/myerp_backend`创建 app: `python manage.py startapp inventory`
+
+4. 创建模型 `/myerp/myerp_backend/inventory/models.py`, 有以下几点需要注意
+
+- IntegerField 不用设置 `max_length`属性
+- 选项类字段应该: 增加一个 Choice 类,继承`models.IntegerChoices`, 然后选项字段指定 choices: `property = models.IntegerField(choices=InventoryPropertyChoice, default=InventoryPropertyChoice.NORMAL)`
+- 在执行迁移前必须在`settings.py`里挂载 app
+- 在执行迁移的过程中出现了一些问题, 我需要删除所有迁移文件 `.../migrations`, 但切忌**删除目录**, 这会使生成迁移命令失效!
+
+### 后端: 商品接口
+
+1. 序列化器: `/myerp/myerp_backend/inventory/serializers.py`
+
+```python
+from rest_framework import serializers
+from apps.brand.serializers import BrandSerializer
+from apps.category.serializers import CategorySerializer
+from .models import Product
+
+class ProductSerializer(serializers.ModelSerializer):
+    # 一定要这么做, 才能在前端读取数据时, 展示外键详情
+    brand = BrandSerializer(read_only=True)
+    category = CategorySerializer(read_only=True)
+    # 才能在前端写入数据时, 正常写入数据
+    brand_id = serializers.IntegerField(write_only=True)
+    category_id = serializers.IntegerField(write_only=True)
+
+    class Meta:
+        model= Product
+        fields="__all__"
+```
+
+> 注意:
+
+> 1 是一开始写成了 `brand = BrandSerializer`, 没有括号没报错, 但前端读不出来外键详情, 还是只有外键 id, 原来是必须指定为一个实例`brand = BrandSerializer()`
+
+> 2 是前端表单不能再把字段写成`brand`了,而是`brand_id`
+
+3. 分页, 类继承自: `from rest_framework.pagination import PageNumberPagination`
+4. 类视图集
+
+```python
+from rest_framework import viewsets
+from rest_framework.permissions import IsAuthenticated
+
+from . import models, serializers, paginations
+
+# 仅实现列表, 新建, 编辑接口
+class ProductViewSet(viewsets.mixins.ListModelMixin,
+                     viewsets.mixins.CreateModelMixin,
+                     viewsets.mixins.UpdateModelMixin,
+                     viewsets.GenericViewSet):
+    """
+    商品类视图集
+    """
+    # 模型
+    queryset = models.Product.objects.all()
+    # 序列化器
+    serializer_class = serializers.ProductSerializer
+    # 分页类
+    pagination_class = paginations.ProductPagination
+    # 鉴权类
+    permission_classes = [IsAuthenticated]
+
+    # 重写 get_queryset 实现筛选
+    def get_queryset(self):
+        queryset = self.queryset
+        request = self.request
+        brand_id = int(request.query_params.get('brand_id'))
+        category_id = int(request.query_params.get('category_id'))
+        name = str(request.query_params.get('name'))
+
+        if brand_id > 0:
+            queryset = queryset.filter(brand_id=brand_id)
+        if category_id > 0:
+            queryset = queryset.filter(category_id=category_id)
+        if name != '':
+            queryset = queryset.filter(name__contains=name)
+
+        return queryset.order_by('-id').all()
+```
+
+5. 路由, 略
+6. postman 测试, 略
+
+### 前端: 商品新增,列表,以及列表筛选
+
+- 重点是筛选功能:
+
+```vue
+<script setup>
+/**筛选器 */
+let filterForm = reactive({
+  brand_id: 0,
+  category_id: 0,
+  name: "",
+});
+
+// ...
+
+/**实现筛选功能 */
+const onSearch = (action) => {
+  // 如果传入的action是true
+  if (action) {
+    // 大写
+    filterForm.name = filterForm.name.toUpperCase();
+    // 调用获取数据函数(页码跳转到1, 传入参数列表作为params)
+    getProducts(1, filterForm);
+  } else {
+    // 如果传入false, 就是清空筛选, 重置筛选表单内容
+    filterForm.brand_id = 0;
+    filterForm.category_id = 0;
+    filterForm.name = "";
+    // 再次调用获取数据函数, 其实也就是重新获取全部数据
+    getProducts(1, filterForm);
+  }
+};
+</script>
+<template>
+  <!-- ... -->
+  <!-- 筛选器 -->
+  <!-- inline表示表单元素为行内,一排排列 -->
+  <el-form inline style="margin-top: 20px">
+    <el-form-item label="按品牌">
+      <!-- 绑定数据 -->
+      <el-select v-model="filterForm.brand_id" style="width: 100px">
+        <el-option :value="0" label="选择品牌" />
+        <el-option
+          v-for="brand in brands"
+          :label="brand.name"
+          :value="brand.id"
+          :key="brand.id"
+        />
+      </el-select>
+    </el-form-item>
+    <el-form-item label="按分类">
+      <!-- 同理 -->
+      <el-select v-model="filterForm.category_id" style="width: 100px">
+        <el-option :value="0" label="选择分类" />
+        <el-option
+          v-for="category in categories"
+          :label="category.name"
+          :value="category.id"
+          :key="category.id"
+        />
+      </el-select>
+    </el-form-item>
+    <el-form-item label="按名称">
+      <!-- 同理 -->
+      <el-input type="text" v-model="filterForm.name" placeholder="输入名称" />
+    </el-form-item>
+    <el-form-item>
+      <el-tooltip content="点击搜索" placement="bottom" effect="light">
+        <!-- 调用搜索时:true就是进行筛选 -->
+        <el-button @click="onSearch(true)" round icon="search" />
+      </el-tooltip>
+      <el-tooltip content="取消搜索" placement="bottom" effect="light">
+        <!-- false就是清空筛选 -->
+        <el-button @click="onSearch(false)" round icon="close" type="info" />
+      </el-tooltip>
+    </el-form-item>
+  </el-form>
+  <!-- ... -->
+</template>
+```
+
+- 路由定义需要注意一个点
+
+```js
+// ...
+ {
+    // 库存管理, 这里不用指定name和componet
+    path: 'inventory',
+    children: [
+      {
+        // /inventory/product
+        path: 'product',
+        name: 'product',
+        component: ProductView,
+      },
+    ],
+  },
+```
+
+- 获取函数需要注意一个点
+
+```js
+// inventoryHttp.js
+const requestProductData = (page, params) => {
+  const path = `/inventory/product/?page=${page}`;
+
+  // 这里第二参数叫什么都可以
+  return http.get(path, params);
+};
+
+// **重点**: http.js
+get = async (path, params) => {
+  try {
+    // 但这里必须叫 params, 且必须带花括号
+    // 这样 `axios.get()` 会将 params 拼接成url地址里的参数
+    // 所以后台 `request.query_params.get()` 函数才能读到
+    const response = await this.instance.get(path, { params });
+    return {
+      status: response.status,
+      data: response.data,
+    };
+  } catch (error) {
+    return {
+      status: error.response.status,
+      data: error.response.data,
+    };
+  }
+};
+```
+
+> 还犯了一个特别二的失误, 就是调用 `http.post()` 新建数据时, 忘了给参数`data`, 找了半天错误, 实在低级!
+
+> 今天的重点就是**筛选**功能的实现: 后端需要重写`get_queryset()`, 前端的`http.get`需要指定参数`{params}`, **params 关键字**不能变!
+
+> 暂时不合并分支, 还不知道我那套收发货的逻辑能不能行
+
+### 前后端: 禁用删除
+
+- 之前为了测试删除功能, 视图集没有禁止删除, 前端也写好了删除方法, 现在保留前端的删除方法, 禁用删除按钮, 后端通过不继承`viewsets.mixins.DestroyModelMixin,` 实现废弃删除接口
+
+- 补个小样式: 筛选表单增加一点上外边距(`margin-top:20px`)
+- 首页的代码我存放了两个 demo: 动态增加表单项, select 可以手动输入和搜索, 后面发货有用
+
+# 开发日志 D04
+
+### 后端: 商品编辑出现错误
+
+- 商品编辑时, 发现和后端冲突, 重写`get_queryset()`后, 以`PUT`访问该模型类视图集时, 也会过`get_queryset()`函数, 但是因为没有带任何参数, 所以会报错说`brand_id`, `category_id`找不到?
+
+```python
+# 改写为:
+def get_queryset(self):
+    queryset = self.queryset
+    request = self.request
+    # 如果请求路由中有参数, 再进行筛选
+    if request.query_params:
+        brand_id = request.query_params.get('brand_id')
+        category_id = request.query_params.get('category_id')
+        name = request.query_params.get('name')
+
+        if int(brand_id) > 0:
+            queryset = queryset.filter(brand_id=brand_id)
+        if int(category_id) > 0:
+            queryset = queryset.filter(category_id=category_id)
+        if str(name) != '':
+            queryset = queryset.filter(name__contains=name)
+
+    return queryset.order_by('-id').all()
+```
+
+### 前端: 商品编辑
+
+1. 表单 5 件套(let 表单开关 ref, let 表单数据 reactive, const 表单 ref, const 表单规则 reactive, const 表单提交 function )
+
+   - 其中`规则`已经实现, `开关`可以改写后通过传入参数判断打开的是新增还是编辑表单, 实现代码复用
+   - 也就是定义一个开关变量, 一个数据变量, 一个表单 ref, 一个修改函数即可
+   - 通过`<template #default="scope">`, `scope.data` 给修改函数传入要修改的数据
+
+2. `@/api/inventoryHttp.js`实现修改功能, 调用`http.js.put()`, 拼接路由地址后面带 id 即可`.../<id>`
+
+### 开发思路发生错误
+
+> 开发失败,回退到 master 分支(product 和 inventory 模型应该合并, 也就是 inventroy 应该有 name,brand,category 这三个属性,而不是画蛇添足地再加个外键 product)
+
+1. 查看 git 日志 `git log`(找到 master 分支最新的 haed)
+2. 回退到 master 分支最新 `git reset head.hash`
+3. 后端删除`inventory`模块, 主 app 里的路由和设置
+4. 前端删除 index.js 里的路由配置代码, 框架里的路由入口连接, 视图 views/inventory/
+
+### 重新开始
+
+1. 新建分支 `git checkout -b newinventory`
+
+### 后端
+
+1. 因为重新回到 master 分支, 已经纠正的错误也需要重新纠正
+
+   - `brand`, `category` 的模型, name 字段均没有设置唯一约束
+   - `brand`, `category` 模块的接口禁用删除功能(通过不继承 DestroyModelMixin)
+   - `cateogry.urls` 的 `app_name` 因为复制粘贴写成了`brand`, 改为`category`
+
+2. 创建模型和序列化器
+3. 分页器
+4. 视图接口, 需要注意: 分页器必须指定`.order_by('排序字段').all()`
+5. 测试接口, 略
+
+### 前端
+
+1. 前端禁用删除按钮
+2. 创建视图, 略
+3. 配置路由
+4. 完成`inventoryHttp.js`的函数
+5. 视图列表渲染, 略
+6. 新增和修改, 略
+7. 筛选, 注意:` axios.get(path, {params})`, 是 **params**
+
+> 到这一步, 总算把之前的工作做完了
+
+### Git: 删除之前作废的分支
+
+- `git branch -d <分支名>`: 删除已合并的本地分支
+- `git branch -D <分支名>`: 强制删除未合并的分支
+- `git push origin --delete <分支名>`: 删除远程分支
+- `git fetch --prune`: 清理无效远程追踪分支
+
+### 发货功能
