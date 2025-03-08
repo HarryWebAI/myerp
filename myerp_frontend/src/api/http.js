@@ -49,7 +49,6 @@ class Http {
   }
 
   get = async (path, params) => {
-    console.log(params)
     try {
       const response = await this.instance.get(path, { params })
       return {

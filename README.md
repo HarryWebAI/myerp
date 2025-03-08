@@ -2092,7 +2092,7 @@ def get_queryset(self):
    - `brand`, `category` 模块的接口禁用删除功能(通过不继承 DestroyModelMixin)
    - `cateogry.urls` 的 `app_name` 因为复制粘贴写成了`brand`, 改为`category`
 
-2. 创建模型和序列化器
+2. 创建模型和序列化器(如何实现计算字段, 序列化器如何将计算字段交给前端?)
 3. 分页器
 4. 视图接口, 需要注意: 分页器必须指定`.order_by('排序字段').all()`
 5. 测试接口, 略
@@ -2117,3 +2117,335 @@ def get_queryset(self):
 - `git fetch --prune`: 清理无效远程追踪分支
 
 ### 发货功能
+
+1. 前端视图, **非常重要**: 包括动态增加表格, 下拉框实现搜索和新增功能, 提交表单前数据清洗等功能
+
+```vue
+<script setup>
+import MainBox from "@/components/MainBox.vue";
+import FormDialog from "@/components/FormDialog.vue";
+import { ref, reactive, onMounted, watch } from "vue";
+import brandAndCategoryHttp from "@/api/brandAndCategoryHttp";
+import inventoryHttp from "@/api/inventoryHttp";
+import { ElMessage } from "element-plus";
+
+/** 品牌筛选 */
+// 通过品牌筛选出商品是发货的第一步, 先锚定品牌, 不允许一次发货多个品牌
+let filterForm = reactive({
+  brand_id: 0,
+});
+// 筛选出的商品列表存放在这里
+let inventories = ref([]);
+watch(
+  // 监听筛选器的变化
+  () => filterForm.brand_id,
+  // 当筛选器指定的品牌发生变化时
+  (brand_id) => {
+    // 先清空商品数据发货表格详情
+    inventories.value = [];
+    details.length = 0;
+    // 然后请求后端接口(根据品牌获取品牌下所有商品的数据)
+    inventoryHttp.requestAllInventoryData(brand_id).then((result) => {
+      // 如果请求成功
+      if (result.status == 200) {
+        // 且成功请求到数据
+        if (result.data.length > 0) {
+          // 先给商品列表赋值
+          inventories.value = result.data;
+          // 再提示用户点击右侧按钮增行表格项实现发货
+          ElMessage.success('请点击右侧"+"号开始发货!');
+        } else {
+          // 如果没有请求到数据, 提示用户当前品牌没有商品
+          ElMessage.info("当前品牌没有任何商品!");
+        }
+      } else {
+        // 如果请求失败
+        ElMessage.error("数据请求失败!");
+      }
+    });
+  }
+);
+
+/** 获取数据 */
+let brands = ref([]);
+let categories = ref([]);
+
+onMounted(() => {
+  brandAndCategoryHttp.requesetBrandData().then((reuslt) => {
+    if (reuslt.status == 200) {
+      brands.value = reuslt.data;
+    } else {
+      ElMessage.error("数据请求失败!");
+    }
+  });
+  brandAndCategoryHttp.requesetCategoryData().then((reuslt) => {
+    if (reuslt.status == 200) {
+      categories.value = reuslt.data;
+    } else {
+      ElMessage.error("数据请求失败!");
+    }
+  });
+});
+
+/** 动态表格 */
+// **重点**
+// 想要实现动态表格, 先定义个空数组,绑定到 el-table :data 上
+let details = reactive([]);
+// 再设置"增加一行"方法
+const addRow = () => {
+  // 给空数组增加一行空数据
+  details.push({
+    inventory_id: 0,
+    quantity: 1,
+  });
+};
+// 减少"一行", 要求传入当前行的索引
+const deleteRow = (index) => {
+  details.splice(index, 1);
+};
+
+/** 新增商品 */
+// 写了无数遍了, 略...
+
+/** 新增商品表单验证规则 */
+// 写了无数遍了, 略...
+
+/** 表单开关 */
+const openForm = () => {
+  // 这里需要注意一点: 不允许一次发货多个品牌, 所以先在这里把品牌的值指定了, 在模板部分, disabled 掉对应的select
+  createInventoryFormData.brand_id = filterForm.brand_id;
+  // ...
+};
+
+/** 发货 */
+// 这是最终提交的数据
+let purchaseData = reactive({
+  brand_id: 0,
+  total_cost: 0,
+  details: [],
+});
+// 这是提交前展示的数据(还是表格)
+let purchaseDataDetails = ref([]);
+
+// 这是点击发货后将要弹出来的对话框表单
+let confirmDialog = ref(false);
+const onPurchase = () => {
+  // 首先, 清空最终提交的数据
+  purchaseData.brand_id = filterForm.brand_id;
+  purchaseData.total_cost = 0;
+  purchaseData.details = [];
+  // 以及, 清空提交前展示的数据
+  purchaseDataDetails.value = [];
+
+  // 进行简单的判断, 如果表格数据没有长度, 说明什么都没填
+  if (details.length < 1) {
+    ElMessage.error("你没有发任何货物!");
+    return;
+  }
+
+  // 开始遍历表格数据
+  for (const detail of details) {
+    // 首先, 不能够发无名的货物
+    if (!detail.inventory_id) {
+      ElMessage.error("错误!请删除空行!");
+      return;
+    }
+    // 发货数量不能为0和负数
+    if (detail.quantity < 1) {
+      ElMessage.error("错误!发货数量不能为0!");
+      return;
+    }
+    // 通过id找到索引
+    let index = inventories.value.findIndex(
+      (inventory) => inventory.id == detail.inventory_id
+    );
+
+    // 通过索引逐一找到对应元素, 并进行判断, 不能和当前锚定的发货品牌不一致(禁止一次发货多个品牌)
+    if (inventories.value[index].brand.id != purchaseData.brand_id) {
+      ElMessage.error("错误!单次发货必须同一品牌!");
+      return;
+    }
+
+    // 累加计算当此发货的总价
+    purchaseData.total_cost += inventories.value[index].cost * detail.quantity;
+
+    // 拼接当前行发货详情
+    let item = inventories.value[index];
+    // 以及当前行发货数量为一个对象
+    item.quantity = detail.quantity;
+    // 添加到 提交前的展示数据中
+    purchaseDataDetails.value.push(item);
+  }
+  // 最后将发货的详情交给最终要提交的数据
+  purchaseData.details = details;
+  // 打开确认发货表单
+  confirmDialog.value = true;
+};
+
+/** 确认发货 */
+const confirmPurchase = () => {
+  // 再次进行判断, 这次提交前只判断, 要发货的品牌, 是不是当前锚定的发货品牌
+  if (purchaseData.brand_id != filterForm.brand_id) {
+    ElMessage.error("错误!单次发货必须同一品牌!");
+  }
+  // 点击提交的数据是这样: 后端还没完成
+  console.log(purchaseData);
+};
+</script>
+
+<template>
+  <MainBox title="申请发货">
+    <!-- 添加按钮 -->
+    <div class="table-header">
+      <div>
+        <el-form inline>
+          <el-form-item label="发货品牌">
+            <el-select v-model="filterForm.brand_id" style="width: 150px">
+              <el-option :value="0" label="请先选择品牌..." />
+              <el-option
+                v-for="brand in brands"
+                :key="brand.id"
+                :value="brand.id"
+                :label="brand.name"
+              ></el-option>
+            </el-select>
+          </el-form-item>
+        </el-form>
+      </div>
+      <div>
+        <el-tooltip
+          v-if="inventories.length > 0"
+          content="点击增加新发货!"
+          placement="left"
+          effect="light"
+        >
+          <el-button @click="addRow"> + </el-button>
+        </el-tooltip>
+      </div>
+    </div>
+
+    <!-- 发货详情: details -->
+    <el-table :data="details" border style="width: 100%">
+      <el-table-column label="序号" width="80" type="index" align="center" />
+      <el-table-column label="发货商品">
+        <!-- 重点: 在这里实现模板 -->
+        <template #default="{ row }">
+          <!-- el-select @click.stop : 禁止默认事件 -->
+          <!-- filterable: 可筛选检索, 相当于有一个input可以输入文本检索option-label -->
+          <el-select
+            v-model="row.inventory_id"
+            placeholder="请选择"
+            @click.stop
+            filterable
+          >
+            <!-- 在select里实现按钮 -->
+            <el-option :value="0" label="请选择商品">
+              <!-- 直接在里面写一个div -->
+              <div class="option-container">
+                <!-- 然后注意按钮: 禁止默认事件, 调用一个函数: 打开新增商品的表单 -->
+                <el-button type="success" @click.stop="openForm()" size="small">
+                  <span>新售商品 ? 点击新增 +</span>
+                </el-button>
+              </div>
+            </el-option>
+            <el-option
+              v-for="inventory in inventories"
+              :key="inventory.id"
+              :label="inventory.full_name + '￥' + inventory.cost"
+              :value="inventory.id"
+            />
+          </el-select>
+        </template>
+      </el-table-column>
+
+      <el-table-column label="发货数量" width="120">
+        <!-- 这里的#default="{row}" 也可以写成 ="scope" -->
+        <template #default="{ row }">
+          <!-- 那这里就要写成 ="scope.row.quantity" -->
+          <el-input v-model.number="row.quantity" type="number" />
+        </template>
+      </el-table-column>
+
+      <el-table-column label="操作" width="160" align="center">
+        <!-- 同理, 如果写scope -->
+        <template #default="{ $index }">
+          <!-- 这里得写 scope.$index -->
+          <el-button type="danger" @click="deleteRow($index)"> - </el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <div class="submit-btn">
+      <el-button type="primary" size="large" @click="onPurchase">
+        点击发货
+      </el-button>
+    </div>
+  </MainBox>
+
+  <!-- 新增商品, 略 -->
+
+  <!-- 确认发货表单 -->
+  <FormDialog
+    title="确认发货?"
+    v-model="confirmDialog"
+    @submit="confirmPurchase"
+  >
+    <!-- 这里不再验证, 直接在确认发货处验证 -->
+    <el-form :model="purchaseData">
+      <el-form-item label="本次发货品牌">
+        <el-select v-model="purchaseData.brand_id" disabled>
+          <el-option
+            v-for="brand in brands"
+            :key="brand.id"
+            :value="brand.id"
+            :label="brand.name"
+          ></el-option>
+        </el-select>
+      </el-form-item>
+      <el-form-item label="本次发货成本">
+        <el-input v-model="purchaseData.total_cost"></el-input>
+      </el-form-item>
+      <el-form-item label="本次发货详情">
+        <el-table :data="purchaseDataDetails">
+          <el-table-column prop="full_name" label="名称" />
+          <el-table-column label="价格">
+            <template #default="scope">
+              <span>
+                ￥{{ scope.row.cost }} × {{ scope.row.quantity }} =
+                {{ scope.row.cost * scope.row.quantity }}
+              </span>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-form-item>
+    </el-form>
+  </FormDialog>
+</template>
+
+<style scoped>
+/* 略 */
+</style>
+```
+
+> `el-table :data`似乎一定要绑定`ref`定义的变量才可以正常渲染, 一开始我将`purchaseDataDetails`定义为了`reactive`,发现最终确认表单只有首次渲染正常, 再返回回去修改再提交, 还是显示之前的数据
+
+2. 前端路由, 略
+3. 前端请求函数, `@/api/inventoryHttp.js`
+
+```js
+// 收发货接口: 获取指定品牌的所有商品
+const requestAllInventoryData = (id) => {
+  // 要求必须传入id
+  if (id < 1) {
+    // 如果不传入直接退出函数, 那么在视图层获得的就不是一个Promise对象了, 也就没有 .then()
+    // 虽然会在控制台报错, 但是不影响正常使用
+    // 这样做还可以减少对服务器的消耗, 防止访问 .../?brand_id=0
+    return;
+  }
+  const path = `/allinventory/?brand_id=${id}`;
+
+  return http.get(path);
+};
+```
+
+4. 后端接口和路由, 就是一个只有列表功能的类视图集, 注册路由`allinventory`即可, 略

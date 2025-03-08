@@ -9,6 +9,10 @@ class InventoryViewSet(viewsets.GenericViewSet,
                        viewsets.mixins.UpdateModelMixin,
                        viewsets.mixins.ListModelMixin
                        ):
+    """
+    库存接口(带分页)
+    """
+
     queryset = models.Inventory.objects.order_by('-id').all()
     serializer_class = serializers.InventorySerializer
     permission_classes = [IsAuthenticated]
@@ -29,5 +33,28 @@ class InventoryViewSet(viewsets.GenericViewSet,
                 queryset = queryset.filter(category_id=category_id)
             if str(name) != '':
                 queryset = queryset.filter(name__contains=name)
+
+        return queryset.order_by('-id').all()
+
+class AllInventoryViewSet(viewsets.GenericViewSet,
+                       viewsets.mixins.ListModelMixin):
+
+    """
+    所有库存接口: 用于收发货, 不带分页
+    """
+
+    queryset = models.Inventory.objects.order_by('-id').all()
+    serializer_class = serializers.InventorySerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = self.queryset
+        request = self.request
+        brand_id = request.query_params.get('brand_id')
+
+        if int(brand_id) > 0:
+            queryset = queryset.filter(brand_id=brand_id)
+        else:
+            return None
 
         return queryset.order_by('-id').all()

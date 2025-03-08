@@ -115,9 +115,9 @@ const resetPassword = () => {
       <el-sub-menu index="3">
         <template #title>
           <el-icon><Grid /></el-icon>
-          <span>商品库存</span>
+          <span>库存管理</span>
         </template>
-        <el-menu-item index="3-1">
+        <el-menu-item index="3-1" :route="{ name: 'inventory_purchase' }">
           <el-icon><Upload /></el-icon>
           <span>申请发货</span>
         </el-menu-item>
