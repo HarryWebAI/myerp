@@ -114,7 +114,7 @@ let updateInventoryFormData = reactive({
 const updateInventoryForm = ref()
 const updateInventory = () => {
   if (updateInventoryFormData.cost < 0) {
-    ElMessage.error('进价不可以为复数!')
+    ElMessage.error('进价不可以为负数!')
   }
 
   updateInventoryForm.value.validate((valid, fields) => {
@@ -143,12 +143,18 @@ const updateInventory = () => {
 const InventoryFormRules = reactive({
   name: [
     { required: true, message: '必须填写商品名称!', trigger: 'blur' },
-    { min: 2, max: 30, message: '商品名称必须在2~30个字之间', trigger: 'blur' },
+    { min: 2, max: 30, message: '商品名称必须在2~30个字之间!', trigger: 'blur' },
   ],
-  brand_id: [{ required: true, message: '必须选择所属品牌', trigger: 'change' }],
-  category_id: [{ required: true, message: '必须选择所属品牌', trigger: 'change' }],
-  size: [{ min: 2, max: 15, message: '规格必须在2~15个字之间!', trigger: 'blur' }],
-  color: [{ min: 2, max: 15, message: '颜色必须在2~15个字之间!', trigger: 'blur' }],
+  brand_id: [{ required: true, message: '必须选择所属品牌!', trigger: 'change' }],
+  category_id: [{ required: true, message: '必须选择所属品牌!', trigger: 'change' }],
+  size: [
+    { required: true, message: '必须选择所规格!', trigger: 'change' },
+    { min: 2, max: 15, message: '规格必须在2~15个字之间!', trigger: 'blur' },
+  ],
+  color: [
+    { required: true, message: '必须选择所属颜色!', trigger: 'change' },
+    { min: 2, max: 15, message: '颜色必须在2~15个字之间!', trigger: 'blur' },
+  ],
   cost: [
     { required: true, message: '必须填写单个进价!', trigger: 'blur' },
     {
