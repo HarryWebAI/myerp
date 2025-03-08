@@ -2314,7 +2314,7 @@ const confirmPurchase = () => {
       </div>
       <div>
         <el-tooltip
-          v-if="inventories.length > 0"
+          v-if="filterForm.brand_id > 0"
           content="点击增加新发货!"
           placement="left"
           effect="light"
@@ -2449,3 +2449,14 @@ const requestAllInventoryData = (id) => {
 ```
 
 4. 后端接口和路由, 就是一个只有列表功能的类视图集, 注册路由`allinventory`即可, 略
+5. 补个小坑: element-plus 汉化, `@/main.js`
+
+```js
+// ...
+import zhCn from "element-plus/es/locale/lang/zh-cn";
+
+// 这样使用:
+app.use(ElementPlus, {
+  locale: zhCn,
+});
+```

@@ -20,7 +20,7 @@ watch(
       if (result.status == 200) {
         if (result.data.length > 0) {
           inventories.value = result.data
-          ElMessage.success('请点击右侧"+"号开始发货!')
+          ElMessage.success('请点击右侧绿色按钮开始发货!')
         } else {
           ElMessage.info('当前品牌没有任何商品!')
         }
@@ -206,7 +206,7 @@ const confirmPurchase = () => {
       <!-- 锚定发货品牌 -->
       <div>
         <el-form inline>
-          <el-form-item label="发货品牌">
+          <el-form-item label="发货品牌：">
             <el-select v-model="filterForm.brand_id" style="width: 150px">
               <el-option :value="0" label="请先选择品牌..." />
               <el-option
@@ -223,12 +223,15 @@ const confirmPurchase = () => {
       <!-- "增加一行"按钮 -->
       <div>
         <el-tooltip
-          v-if="inventories.length > 0"
-          content="点击增加新发货!"
+          v-if="filterForm.brand_id > 0"
+          content="点击增加一行数据!"
           placement="left"
           effect="light"
         >
-          <el-button @click="addRow"> + </el-button>
+          <el-button @click="addRow" type="success" size="large" class="add-row-btn">
+            <el-icon><CirclePlus /></el-icon>
+            <span>点我发货</span>
+          </el-button>
         </el-tooltip>
       </div>
     </div>
@@ -242,7 +245,7 @@ const confirmPurchase = () => {
             <el-option :value="0" label="请选择商品">
               <div class="option-container">
                 <el-button type="success" @click.stop="openForm()" size="small">
-                  <span>新售商品 ? 点击新增 +</span>
+                  <span>首次采购 ? 点击新增 +</span>
                 </el-button>
               </div>
             </el-option>
@@ -321,8 +324,8 @@ const confirmPurchase = () => {
 
   <!-- 确认发货表单 -->
   <FormDialog title="确认发货?" v-model="confirmDialog" @submit="confirmPurchase">
-    <el-form :model="purchaseData" label-width="100">
-      <el-form-item label="发货品牌:">
+    <el-form :model="purchaseData" label-width="80">
+      <el-form-item label="发货品牌">
         <el-select v-model="purchaseData.brand_id" disabled>
           <el-option
             v-for="brand in brands"
@@ -332,10 +335,10 @@ const confirmPurchase = () => {
           ></el-option>
         </el-select>
       </el-form-item>
-      <el-form-item label="发货成本￥">
+      <el-form-item label="发货成本">
         <el-input v-model="purchaseData.total_cost"></el-input>
       </el-form-item>
-      <el-form-item label="发货详情?">
+      <el-form-item label="发货详情">
         <el-table :data="purchaseDataDetails">
           <el-table-column prop="full_name" label="名称" />
           <el-table-column label="价格">
@@ -356,6 +359,10 @@ const confirmPurchase = () => {
 .table-header {
   display: flex;
   justify-content: space-between;
+}
+
+.add-row-btn {
+  width: 160px;
 }
 
 .option-container {
