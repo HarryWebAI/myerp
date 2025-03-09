@@ -1101,6 +1101,8 @@ urlpatterns = [] + router.urls
 - 将其路由在`@/router/index.js`中声明为`{path:'', name:'home', component: 导入的视图组件}`
 - 这样访问首页至少知道在首页了
 
+# 开发日志 D02
+
 ### 前端: 品牌和种类管理
 
 > 这些代码复用性很强,值得收藏避免反复写
@@ -1174,11 +1176,11 @@ class Http {
     }
   };
 
-  // get请求, param参数可选
-  get = async (path, param) => {
+  // get请求, params参数可选
+  get = async (path, params) => {
     try {
       // 注意param外面加上{} 将其转为对象, 这样路由地址就是 (.../?param.key=param.value&p.k=p.v&...)
-      const response = await this.instance.get(path, { param });
+      const response = await this.instance.get(path, { params });
       return {
         status: response.status,
         data: response.data,
@@ -1788,3 +1790,1001 @@ const openAddform = (form) => {
 ```
 
 5. 顺带把菜单栏完善了(商品库存,订单管理等模块在侧边栏上先把导航按钮画出来), 略
+
+# 开发日志 D03
+
+### 创建分支:
+
+- 在根目录`/myerp`执行这条 git 指令: `git checkout -b inventory`: 创建并切换到 inventory 分支
+
+- 这样做是为了: 不影响 master 分支上的内容
+
+### 后端: 库存管理模块的模型
+
+> 没有设置品牌和种类名称的唯一约束,app_nama 错误, intgerfield 不能设置 max_length, 误删 migrations/路径导致无法创建迁移
+
+1. 填坑: 在品牌和种类表创建时, 没有给两者的名称设置唯一约束, 更正为: `name = models.CharField(max_length=10, unique=True)`
+2. 发现`cateogory`模块的 app_name 设置成了`brand`,纠错(复制粘贴导致的)
+
+3. 进入后端路径`/myerp/myerp_backend`创建 app: `python manage.py startapp inventory`
+
+4. 创建模型 `/myerp/myerp_backend/inventory/models.py`, 有以下几点需要注意
+
+- IntegerField 不用设置 `max_length`属性
+- 选项类字段应该: 增加一个 Choice 类,继承`models.IntegerChoices`, 然后选项字段指定 choices: `property = models.IntegerField(choices=InventoryPropertyChoice, default=InventoryPropertyChoice.NORMAL)`
+- 在执行迁移前必须在`settings.py`里挂载 app
+- 在执行迁移的过程中出现了一些问题, 我需要删除所有迁移文件 `.../migrations`, 但切忌**删除目录**, 这会使生成迁移命令失效!
+
+### 后端: 商品接口
+
+1. 序列化器: `/myerp/myerp_backend/inventory/serializers.py`
+
+```python
+from rest_framework import serializers
+from apps.brand.serializers import BrandSerializer
+from apps.category.serializers import CategorySerializer
+from .models import Product
+
+class ProductSerializer(serializers.ModelSerializer):
+    # 一定要这么做, 才能在前端读取数据时, 展示外键详情
+    brand = BrandSerializer(read_only=True)
+    category = CategorySerializer(read_only=True)
+    # 才能在前端写入数据时, 正常写入数据
+    brand_id = serializers.IntegerField(write_only=True)
+    category_id = serializers.IntegerField(write_only=True)
+
+    class Meta:
+        model= Product
+        fields="__all__"
+```
+
+> 注意:
+
+> 1 是一开始写成了 `brand = BrandSerializer`, 没有括号没报错, 但前端读不出来外键详情, 还是只有外键 id, 原来是必须指定为一个实例`brand = BrandSerializer()`
+
+> 2 是前端表单不能再把字段写成`brand`了,而是`brand_id`
+
+3. 分页, 类继承自: `from rest_framework.pagination import PageNumberPagination`
+4. 类视图集
+
+```python
+from rest_framework import viewsets
+from rest_framework.permissions import IsAuthenticated
+
+from . import models, serializers, paginations
+
+# 仅实现列表, 新建, 编辑接口
+class ProductViewSet(viewsets.mixins.ListModelMixin,
+                     viewsets.mixins.CreateModelMixin,
+                     viewsets.mixins.UpdateModelMixin,
+                     viewsets.GenericViewSet):
+    """
+    商品类视图集
+    """
+    # 模型
+    queryset = models.Product.objects.all()
+    # 序列化器
+    serializer_class = serializers.ProductSerializer
+    # 分页类
+    pagination_class = paginations.ProductPagination
+    # 鉴权类
+    permission_classes = [IsAuthenticated]
+
+    # 重写 get_queryset 实现筛选
+    def get_queryset(self):
+        queryset = self.queryset
+        request = self.request
+        brand_id = int(request.query_params.get('brand_id'))
+        category_id = int(request.query_params.get('category_id'))
+        name = str(request.query_params.get('name'))
+
+        if brand_id > 0:
+            queryset = queryset.filter(brand_id=brand_id)
+        if category_id > 0:
+            queryset = queryset.filter(category_id=category_id)
+        if name != '':
+            queryset = queryset.filter(name__contains=name)
+
+        return queryset.order_by('-id').all()
+```
+
+5. 路由, 略
+6. postman 测试, 略
+
+### 前端: 商品新增,列表,以及列表筛选
+
+- 重点是筛选功能:
+
+```vue
+<script setup>
+/**筛选器 */
+let filterForm = reactive({
+  brand_id: 0,
+  category_id: 0,
+  name: "",
+});
+
+// ...
+
+/**实现筛选功能 */
+const onSearch = (action) => {
+  // 如果传入的action是true
+  if (action) {
+    // 大写
+    filterForm.name = filterForm.name.toUpperCase();
+    // 调用获取数据函数(页码跳转到1, 传入参数列表作为params)
+    getProducts(1, filterForm);
+  } else {
+    // 如果传入false, 就是清空筛选, 重置筛选表单内容
+    filterForm.brand_id = 0;
+    filterForm.category_id = 0;
+    filterForm.name = "";
+    // 再次调用获取数据函数, 其实也就是重新获取全部数据
+    getProducts(1, filterForm);
+  }
+};
+</script>
+<template>
+  <!-- ... -->
+  <!-- 筛选器 -->
+  <!-- inline表示表单元素为行内,一排排列 -->
+  <el-form inline style="margin-top: 20px">
+    <el-form-item label="按品牌">
+      <!-- 绑定数据 -->
+      <el-select v-model="filterForm.brand_id" style="width: 100px">
+        <el-option :value="0" label="选择品牌" />
+        <el-option
+          v-for="brand in brands"
+          :label="brand.name"
+          :value="brand.id"
+          :key="brand.id"
+        />
+      </el-select>
+    </el-form-item>
+    <el-form-item label="按分类">
+      <!-- 同理 -->
+      <el-select v-model="filterForm.category_id" style="width: 100px">
+        <el-option :value="0" label="选择分类" />
+        <el-option
+          v-for="category in categories"
+          :label="category.name"
+          :value="category.id"
+          :key="category.id"
+        />
+      </el-select>
+    </el-form-item>
+    <el-form-item label="按名称">
+      <!-- 同理 -->
+      <el-input type="text" v-model="filterForm.name" placeholder="输入名称" />
+    </el-form-item>
+    <el-form-item>
+      <el-tooltip content="点击搜索" placement="bottom" effect="light">
+        <!-- 调用搜索时:true就是进行筛选 -->
+        <el-button @click="onSearch(true)" round icon="search" />
+      </el-tooltip>
+      <el-tooltip content="取消搜索" placement="bottom" effect="light">
+        <!-- false就是清空筛选 -->
+        <el-button @click="onSearch(false)" round icon="close" type="info" />
+      </el-tooltip>
+    </el-form-item>
+  </el-form>
+  <!-- ... -->
+</template>
+```
+
+- 路由定义需要注意一个点
+
+```js
+// ...
+ {
+    // 库存管理, 这里不用指定name和componet
+    path: 'inventory',
+    children: [
+      {
+        // /inventory/product
+        path: 'product',
+        name: 'product',
+        component: ProductView,
+      },
+    ],
+  },
+```
+
+- 获取函数需要注意一个点
+
+```js
+// inventoryHttp.js
+const requestProductData = (page, params) => {
+  const path = `/inventory/product/?page=${page}`;
+
+  // 这里第二参数叫什么都可以
+  return http.get(path, params);
+};
+
+// **重点**: http.js
+get = async (path, params) => {
+  try {
+    // 但这里必须叫 params, 且必须带花括号
+    // 这样 `axios.get()` 会将 params 拼接成url地址里的参数
+    // 所以后台 `request.query_params.get()` 函数才能读到
+    const response = await this.instance.get(path, { params });
+    return {
+      status: response.status,
+      data: response.data,
+    };
+  } catch (error) {
+    return {
+      status: error.response.status,
+      data: error.response.data,
+    };
+  }
+};
+```
+
+> 还犯了一个特别二的失误, 就是调用 `http.post()` 新建数据时, 忘了给参数`data`, 找了半天错误, 实在低级!
+
+> 今天的重点就是**筛选**功能的实现: 后端需要重写`get_queryset()`, 前端的`http.get`需要指定参数`{params}`, **params 关键字**不能变!
+
+> 暂时不合并分支, 还不知道我那套收发货的逻辑能不能行
+
+### 前后端: 禁用删除
+
+- 之前为了测试删除功能, 视图集没有禁止删除, 前端也写好了删除方法, 现在保留前端的删除方法, 禁用删除按钮, 后端通过不继承`viewsets.mixins.DestroyModelMixin,` 实现废弃删除接口
+
+- 补个小样式: 筛选表单增加一点上外边距(`margin-top:20px`)
+- 首页的代码我存放了两个 demo: 动态增加表单项, select 可以手动输入和搜索, 后面发货有用
+
+# 开发日志 D04
+
+### 后端: 商品编辑出现错误
+
+- 商品编辑时, 发现和后端冲突, 重写`get_queryset()`后, 以`PUT`访问该模型类视图集时, 也会过`get_queryset()`函数, 但是因为没有带任何参数, 所以会报错说`brand_id`, `category_id`找不到?
+
+```python
+# 改写为:
+def get_queryset(self):
+    queryset = self.queryset
+    request = self.request
+    # 如果请求路由中有参数, 再进行筛选
+    if request.query_params:
+        brand_id = request.query_params.get('brand_id')
+        category_id = request.query_params.get('category_id')
+        name = request.query_params.get('name')
+
+        if int(brand_id) > 0:
+            queryset = queryset.filter(brand_id=brand_id)
+        if int(category_id) > 0:
+            queryset = queryset.filter(category_id=category_id)
+        if str(name) != '':
+            queryset = queryset.filter(name__contains=name)
+
+    return queryset.order_by('-id').all()
+```
+
+### 前端: 商品编辑
+
+1. 表单 5 件套(let 表单开关 ref, let 表单数据 reactive, const 表单 ref, const 表单规则 reactive, const 表单提交 function )
+
+   - 其中`规则`已经实现, `开关`可以改写后通过传入参数判断打开的是新增还是编辑表单, 实现代码复用
+   - 也就是定义一个开关变量, 一个数据变量, 一个表单 ref, 一个修改函数即可
+   - 通过`<template #default="scope">`, `scope.data` 给修改函数传入要修改的数据
+
+2. `@/api/inventoryHttp.js`实现修改功能, 调用`http.js.put()`, 拼接路由地址后面带 id 即可`.../<id>`
+
+### 开发思路发生错误
+
+> 开发失败,回退到 master 分支(product 和 inventory 模型应该合并, 也就是 inventroy 应该有 name,brand,category 这三个属性,而不是画蛇添足地再加个外键 product)
+
+1. 查看 git 日志 `git log`(找到 master 分支最新的 haed)
+2. 回退到 master 分支最新 `git reset head.hash`
+3. 后端删除`inventory`模块, 主 app 里的路由和设置
+4. 前端删除 index.js 里的路由配置代码, 框架里的路由入口连接, 视图 views/inventory/
+
+### 重新开始
+
+1. 新建分支 `git checkout -b newinventory`
+
+### 后端
+
+1. 因为重新回到 master 分支, 已经纠正的错误也需要重新纠正
+
+   - `brand`, `category` 的模型, name 字段均没有设置唯一约束
+   - `brand`, `category` 模块的接口禁用删除功能(通过不继承 DestroyModelMixin)
+   - `cateogry.urls` 的 `app_name` 因为复制粘贴写成了`brand`, 改为`category`
+
+2. 创建模型和序列化器(如何实现计算字段, 序列化器如何将计算字段交给前端?)
+3. 分页器
+4. 视图接口, 需要注意: 分页器必须指定`.order_by('排序字段').all()`
+5. 测试接口, 略
+
+### 前端
+
+1. 前端禁用删除按钮
+2. 创建视图, 略
+3. 配置路由
+4. 完成`inventoryHttp.js`的函数
+5. 视图列表渲染, 略
+6. 新增和修改, 略
+7. 筛选, 注意:` axios.get(path, {params})`, 是 **params**
+
+> 到这一步, 总算把之前的工作做完了
+
+### Git: 删除之前作废的分支
+
+- `git branch -d <分支名>`: 删除已合并的本地分支
+- `git branch -D <分支名>`: 强制删除未合并的分支
+- `git push origin --delete <分支名>`: 删除远程分支
+- `git fetch --prune`: 清理无效远程追踪分支
+
+### 发货功能页面
+
+1. 前端视图, **非常重要**: 包括动态增加表格, 下拉框实现搜索和新增功能, 提交表单前数据清洗等功能
+
+```vue
+<script setup>
+import MainBox from "@/components/MainBox.vue";
+import FormDialog from "@/components/FormDialog.vue";
+import { ref, reactive, onMounted, watch } from "vue";
+import brandAndCategoryHttp from "@/api/brandAndCategoryHttp";
+import inventoryHttp from "@/api/inventoryHttp";
+import { ElMessage } from "element-plus";
+
+/** 品牌筛选 */
+// 通过品牌筛选出商品是发货的第一步, 先锚定品牌, 不允许一次发货多个品牌
+let filterForm = reactive({
+  brand_id: 0,
+});
+// 筛选出的商品列表存放在这里
+let inventories = ref([]);
+watch(
+  // 监听筛选器的变化
+  () => filterForm.brand_id,
+  // 当筛选器指定的品牌发生变化时
+  (brand_id) => {
+    // 先清空商品数据发货表格详情
+    inventories.value = [];
+    details.length = 0;
+    // 然后请求后端接口(根据品牌获取品牌下所有商品的数据)
+    inventoryHttp.requestAllInventoryData(brand_id).then((result) => {
+      // 如果请求成功
+      if (result.status == 200) {
+        // 且成功请求到数据
+        if (result.data.length > 0) {
+          // 先给商品列表赋值
+          inventories.value = result.data;
+          // 再提示用户点击右侧按钮增行表格项实现发货
+          ElMessage.success('请点击右侧"+"号开始发货!');
+        } else {
+          // 如果没有请求到数据, 提示用户当前品牌没有商品
+          ElMessage.info("当前品牌没有任何商品!");
+        }
+      } else {
+        // 如果请求失败
+        ElMessage.error("数据请求失败!");
+      }
+    });
+  }
+);
+
+/** 获取数据 */
+let brands = ref([]);
+let categories = ref([]);
+
+onMounted(() => {
+  brandAndCategoryHttp.requesetBrandData().then((reuslt) => {
+    if (reuslt.status == 200) {
+      brands.value = reuslt.data;
+    } else {
+      ElMessage.error("数据请求失败!");
+    }
+  });
+  brandAndCategoryHttp.requesetCategoryData().then((reuslt) => {
+    if (reuslt.status == 200) {
+      categories.value = reuslt.data;
+    } else {
+      ElMessage.error("数据请求失败!");
+    }
+  });
+});
+
+/** 动态表格 */
+// **重点**
+// 想要实现动态表格, 先定义个空数组,绑定到 el-table :data 上
+let details = reactive([]);
+// 再设置"增加一行"方法
+const addRow = () => {
+  // 给空数组增加一行空数据
+  details.push({
+    inventory_id: 0,
+    quantity: 1,
+  });
+};
+// 减少"一行", 要求传入当前行的索引
+const deleteRow = (index) => {
+  details.splice(index, 1);
+};
+
+/** 新增商品 */
+// 写了无数遍了, 略...
+
+/** 新增商品表单验证规则 */
+// 写了无数遍了, 略...
+
+/** 表单开关 */
+const openForm = () => {
+  // 这里需要注意一点: 不允许一次发货多个品牌, 所以先在这里把品牌的值指定了, 在模板部分, disabled 掉对应的select
+  createInventoryFormData.brand_id = filterForm.brand_id;
+  // ...
+};
+
+/** 发货 */
+// 这是最终提交的数据
+let purchaseData = reactive({
+  brand_id: 0,
+  total_cost: 0,
+  details: [],
+});
+// 这是提交前展示的数据(还是表格)
+let purchaseDataDetails = ref([]);
+
+// 这是点击发货后将要弹出来的对话框表单
+let confirmDialog = ref(false);
+const onPurchase = () => {
+  // 首先, 清空最终提交的数据
+  purchaseData.brand_id = filterForm.brand_id;
+  purchaseData.total_cost = 0;
+  purchaseData.details = [];
+  // 以及, 清空提交前展示的数据
+  purchaseDataDetails.value = [];
+
+  // 进行简单的判断, 如果表格数据没有长度, 说明什么都没填
+  if (details.length < 1) {
+    ElMessage.error("你没有发任何货物!");
+    return;
+  }
+
+  // 开始遍历表格数据
+  for (const detail of details) {
+    // 首先, 不能够发无名的货物
+    if (!detail.inventory_id) {
+      ElMessage.error("错误!请删除空行!");
+      return;
+    }
+    // 发货数量不能为0和负数
+    if (detail.quantity < 1) {
+      ElMessage.error("错误!发货数量不能为0!");
+      return;
+    }
+    // 通过id找到索引
+    let index = inventories.value.findIndex(
+      (inventory) => inventory.id == detail.inventory_id
+    );
+
+    // 通过索引逐一找到对应元素, 并进行判断, 不能和当前锚定的发货品牌不一致(禁止一次发货多个品牌)
+    if (inventories.value[index].brand.id != purchaseData.brand_id) {
+      ElMessage.error("错误!单次发货必须同一品牌!");
+      return;
+    }
+
+    // 累加计算当此发货的总价
+    purchaseData.total_cost += inventories.value[index].cost * detail.quantity;
+
+    // 拼接当前行发货详情
+    let item = inventories.value[index];
+    // 以及当前行发货数量为一个对象
+    item.quantity = detail.quantity;
+    // 添加到 提交前的展示数据中
+    purchaseDataDetails.value.push(item);
+  }
+  // 最后将发货的详情交给最终要提交的数据
+  purchaseData.details = details;
+  // 打开确认发货表单
+  confirmDialog.value = true;
+};
+
+/** 确认发货 */
+const confirmPurchase = () => {
+  // 再次进行判断, 这次提交前只判断, 要发货的品牌, 是不是当前锚定的发货品牌
+  if (purchaseData.brand_id != filterForm.brand_id) {
+    ElMessage.error("错误!单次发货必须同一品牌!");
+  }
+  // 点击提交的数据是这样: 后端还没完成
+  console.log(purchaseData);
+};
+</script>
+
+<template>
+  <MainBox title="申请发货">
+    <!-- 添加按钮 -->
+    <div class="table-header">
+      <div>
+        <el-form inline>
+          <el-form-item label="发货品牌">
+            <el-select v-model="filterForm.brand_id" style="width: 150px">
+              <el-option :value="0" label="请先选择品牌..." />
+              <el-option
+                v-for="brand in brands"
+                :key="brand.id"
+                :value="brand.id"
+                :label="brand.name"
+              ></el-option>
+            </el-select>
+          </el-form-item>
+        </el-form>
+      </div>
+      <div>
+        <el-tooltip
+          v-if="filterForm.brand_id > 0"
+          content="点击增加新发货!"
+          placement="left"
+          effect="light"
+        >
+          <el-button @click="addRow"> + </el-button>
+        </el-tooltip>
+      </div>
+    </div>
+
+    <!-- 发货详情: details -->
+    <el-table :data="details" border style="width: 100%">
+      <el-table-column label="序号" width="80" type="index" align="center" />
+      <el-table-column label="发货商品">
+        <!-- 重点: 在这里实现模板 -->
+        <template #default="{ row }">
+          <!-- el-select @click.stop : 禁止默认事件 -->
+          <!-- filterable: 可筛选检索, 相当于有一个input可以输入文本检索option-label -->
+          <el-select
+            v-model="row.inventory_id"
+            placeholder="请选择"
+            @click.stop
+            filterable
+          >
+            <!-- 在select里实现按钮 -->
+            <el-option :value="0" label="请选择商品">
+              <!-- 直接在里面写一个div -->
+              <div class="option-container">
+                <!-- 然后注意按钮: 禁止默认事件, 调用一个函数: 打开新增商品的表单 -->
+                <el-button type="success" @click.stop="openForm()" size="small">
+                  <span>新售商品 ? 点击新增 +</span>
+                </el-button>
+              </div>
+            </el-option>
+            <el-option
+              v-for="inventory in inventories"
+              :key="inventory.id"
+              :label="inventory.full_name + '￥' + inventory.cost"
+              :value="inventory.id"
+            />
+          </el-select>
+        </template>
+      </el-table-column>
+
+      <el-table-column label="发货数量" width="120">
+        <!-- 这里的#default="{row}" 也可以写成 ="scope" -->
+        <template #default="{ row }">
+          <!-- 那这里就要写成 ="scope.row.quantity" -->
+          <el-input v-model.number="row.quantity" type="number" />
+        </template>
+      </el-table-column>
+
+      <el-table-column label="操作" width="160" align="center">
+        <!-- 同理, 如果写scope -->
+        <template #default="{ $index }">
+          <!-- 这里得写 scope.$index -->
+          <el-button type="danger" @click="deleteRow($index)"> - </el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <div class="submit-btn">
+      <el-button type="primary" size="large" @click="onPurchase">
+        点击发货
+      </el-button>
+    </div>
+  </MainBox>
+
+  <!-- 新增商品, 略 -->
+
+  <!-- 确认发货表单 -->
+  <FormDialog
+    title="确认发货?"
+    v-model="confirmDialog"
+    @submit="confirmPurchase"
+  >
+    <!-- 这里不再验证, 直接在确认发货处验证 -->
+    <el-form :model="purchaseData">
+      <el-form-item label="本次发货品牌">
+        <el-select v-model="purchaseData.brand_id" disabled>
+          <el-option
+            v-for="brand in brands"
+            :key="brand.id"
+            :value="brand.id"
+            :label="brand.name"
+          ></el-option>
+        </el-select>
+      </el-form-item>
+      <el-form-item label="本次发货成本">
+        <el-input v-model="purchaseData.total_cost"></el-input>
+      </el-form-item>
+      <el-form-item label="本次发货详情">
+        <el-table :data="purchaseDataDetails">
+          <el-table-column prop="full_name" label="名称" />
+          <el-table-column label="价格">
+            <template #default="scope">
+              <span>
+                ￥{{ scope.row.cost }} × {{ scope.row.quantity }} =
+                {{ scope.row.cost * scope.row.quantity }}
+              </span>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-form-item>
+    </el-form>
+  </FormDialog>
+</template>
+
+<style scoped>
+/* 略 */
+</style>
+```
+
+> `el-table :data`似乎一定要绑定`ref`定义的变量才可以正常渲染, 一开始我将`purchaseDataDetails`定义为了`reactive`,发现最终确认表单只有首次渲染正常, 再返回回去修改再提交, 还是显示之前的数据
+
+2. 前端路由, 略
+3. 前端请求函数, `@/api/inventoryHttp.js`
+
+```js
+// 收发货接口: 获取指定品牌的所有商品
+const requestAllInventoryData = (id) => {
+  // 要求必须传入id
+  if (id < 1) {
+    // 如果不传入直接退出函数, 那么在视图层获得的就不是一个Promise对象了, 也就没有 .then()
+    // 虽然会在控制台报错, 但是不影响正常使用
+    // 这样做还可以减少对服务器的消耗, 防止访问 .../?brand_id=0
+    return;
+  }
+  const path = `/allinventory/?brand_id=${id}`;
+
+  return http.get(path);
+};
+```
+
+4. 后端接口和路由, 就是一个只有列表功能的类视图集, 注册路由`allinventory`即可, 略
+5. 补个小坑: element-plus 汉化, `@/main.js`
+
+```js
+// ...
+import zhCn from "element-plus/es/locale/lang/zh-cn";
+
+// 这样使用:
+app.use(ElementPlus, {
+  locale: zhCn,
+});
+```
+
+# 开发日志 D05
+
+### 后端发货功能
+
+1. 前端发送数据的格式: 根据`console.log(purchaseData);`, 得出格式: `{brand_id:所属的品牌, total_cost:本次发货的花费, details:[{inventory_id:发货的商品, quantity:发货的数量}, {...}]}`, 接下来根据这个格式设置模型
+2. 确认模型结构: 发货表, 发货详情表, 略
+3. 实现序列化器, 继承`Serializer`而不是`ModelSerializer`, 这里序列化器只帮助验证前端提交的数据并将其转为 json
+4. 实现接口, **非常重要**: 一次性修改多个数据表时, 一定要开启数据库原子事务, `~/apps/inventory/views.py`
+
+```python
+# 导包
+from django.db import transaction
+from django.db.models import F
+from rest_framework import viewsets, status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+# ...
+
+# 发货接口
+class PurchaseView(APIView):
+    def post(self, request):
+        # 使用序列化器验证数据
+        serializer = serializers.PurchaseSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({'detail': '错误, 数据不合规!'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 开始尝试写入数据
+        try:
+            # 开启数据库事务.原子事务: 要么都执行成功, 要么回滚到事务开启前
+            with transaction.atomic():
+
+                # 1, 写入采购表
+                purchase = models.Purchase.objects.create(
+                    brand_id=serializer.validated_data['brand_id'],
+                    total_cost=serializer.validated_data['total_cost'],
+                    user=request.user
+                )
+
+                # 2, 批量处理采购详情
+                # 空数组存放采购详情
+                details = []
+                # 开始遍历前端提交的采购详情
+                for detail in serializer.validated_data['details']:
+                    # 根据每条详情提供的 inventory_id 找到要修改的数据
+                    inventory = models.Inventory.objects.select_for_update().get(id=detail['inventory_id'])
+
+                    # 后端数据验证: 防止跨品牌发货
+                    if inventory.brand != purchase.brand:
+                        raise Exception('错误!单次发货必须同一品牌!')
+
+                    # 原子更新在途库存
+                    inventory.on_road = F('on_road') + detail['quantity']
+                    inventory.save(update_fields=['on_road'])
+
+                    # 构建采购明细对象
+                    details.append(models.PurchaseDetail(
+                        purchase=purchase, # 详情所属的发货行动编号
+                        inventory=inventory, # 所发的商品
+                        quantity=detail['quantity'] # 所发的数量
+                    ))
+
+                # 批量创建采购明细
+                models.PurchaseDetail.objects.bulk_create(details)
+
+            # 如果事务正常执行完, 说明没有问题, 给前端返回信息
+            return Response({'purchase_id':purchase.id,'message': "发货成功!"}, status=status.HTTP_201_CREATED)
+        except:
+            # 一旦发生任何错误, 数据库不会更新数据, 并且告诉前端发货失败
+            return Response({'detail': '发货失败!'}, status=status.HTTP_400_BAD_REQUEST)
+```
+
+5. 配置路由, 不再是注册视图集了, 而是只有一条路由, `/purchase/`, 略
+
+### 发货功能前端实现
+
+1. 前端测试时发现有问题: 创建和编辑商品时可以不选品牌和分类, 也可以访问到服务器接口, 再由服务器接口报错说 brand_id 或者 category_id 不能为 0, 但是这相当浪费服务器资源, 应该: 前端先验证, 数据没有错, 再请求接口
+
+```js
+// 新增或更新提交前... 以更新为例
+if (updateInventoryFormData.brand_id < 1) {
+  ElMessage.error("必须选择所属品牌!");
+  return;
+}
+if (updateInventoryFormData.category_id < 1) {
+  ElMessage.error("必须选择商品分类!");
+  return;
+}
+if (updateInventoryFormData.cost < 0) {
+  ElMessage.error("进价不可以为负数!");
+  return;
+}
+```
+
+2. 发货时, 禁用已经勾选过的 option: 又发现一个漏洞, 我可以反复发同一货物, 修改代码
+
+```vue
+<script setup>
+// ...
+
+/** 禁用重复option */
+// 新增响应式变量记录已选商品ID(禁用集合)
+const selectedInventoryIds = ref(new Set());
+
+// 在每行的select选择事件中更新选中状态
+const handleSelectChange = (row, value) => {
+  // 移除该行之前选择的ID
+  selectedInventoryIds.value.delete(row.inventory_id);
+
+  // 添加新选择的ID
+  if (value !== 0) {
+    selectedInventoryIds.value.add(value);
+  }
+
+  // 更新当前行的选择
+  row.inventory_id = value;
+};
+
+// 判断是否禁用
+const getDisabledStatus = (inventoryId, currentRowId) => {
+  return (
+    selectedInventoryIds.value.has(inventoryId) && inventoryId !== currentRowId
+  );
+};
+</script>
+
+<template>
+  <el-table-column label="发货商品">
+    <template #default="{ row }">
+      <!-- @change="绑定change事件, 当所选值发生改变时, 添加所选值到禁用集合中" -->
+      <el-select
+        v-model="row.inventory_id"
+        @change="(val) => handleSelectChange(row, val)"
+        filterable
+      >
+        <!-- 新增按钮 -->
+        <el-option :value="0" label="请选择商品">
+          <div class="option-container">
+            <el-button type="success" @click.stop="openForm()" size="small">
+              <span>首次采购 ? 点击新增 +</span>
+            </el-button>
+          </div>
+        </el-option>
+        <!-- 遍历锚定品牌的所有库存商品 -->
+        <!-- :disabled="调用判断是否禁用函数" -->
+        <el-option
+          v-for="inventory in inventories"
+          :key="inventory.id"
+          :label="inventory.full_name + '￥' + inventory.cost"
+          :value="inventory.id"
+          :disabled="getDisabledStatus(inventory.id, row.inventory_id)"
+        />
+      </el-select>
+    </template>
+  </el-table-column>
+</template>
+```
+
+3. 完成发货功能: 接口访问函数, `inventoryHttp.createPurchaseData`, 简单的封装, 略
+4. 发货功能
+
+```js
+const confirmPurchase = () => {
+  // 再次验证不能跨品牌发货
+  if (purchaseData.brand_id != filterForm.brand_id) {
+    ElMessage.error("错误!单次发货必须同一品牌!");
+  }
+
+  // 调用函数请求接口
+  inventoryHttp.createPurchaseData(purchaseData).then((result) => {
+    if (result.status == 201) {
+      // 只返回purchase_id: 新增的发货id, 以及message: '发货成功!'
+      console.log(result.data);
+      ElMessage.success(result.data.message);
+      // 跳转到发货详情页面...
+    } else {
+      ElMessage.error("请求失败!");
+    }
+  });
+};
+```
+
+### 发货列表和详情展示
+
+1. 前端规定路由为
+
+- `/inventory/purchase/list` : 发货记录列表
+- `/inventory/purchase/detail/:id`: 发货记录详情
+
+2. 后端规定路由为
+
+- `(/api) /purchase/list`
+- `(/api) /purchase/detail/<pk>`
+
+3. 忘记了一个重要的字段: `create_time` 发货时间
+
+   - 修改模型后, 需要重新创建迁移文件
+   - 创建后, 执行迁移, 会给我一个选择 1:将`create_time`设置为当前时间, 2 退回去重改, 选择 1 再回车即可给所以已经创建好的字段加入当前时间了
+
+4. 后端列表接口(普通 APIView 如何实现分页?)
+
+```python
+class PurchaseList(APIView):
+    """
+    发货列表（支持分页查询）
+    """
+    permission_classes = [IsAuthenticated]
+    pagination_class = paginations.PurchasePagination
+
+    def get_queryset(self):
+        return models.Purchase.objects.select_related('brand', 'user').order_by('-create_time', '-id').all()
+
+    def get(self, request):
+        # 获取分页器实例
+        paginator = self.pagination_class()
+
+        # 获取查询集
+        queryset = self.get_queryset()
+
+        # 分页处理
+        page = paginator.paginate_queryset(queryset, request, view=self)
+
+        # 序列化数据
+        serializer = serializers.PurchaseListSerializer(page, many=True)
+
+        # 返回分页响应
+        return paginator.get_paginated_response(serializer.data)
+```
+
+5. 前端列表展示, 略
+
+6. 后端详情接口(如果获取传入的参数?)
+
+```js
+import { useRoute } from "vue-router";
+
+// .../details/:id, 如何获取id?
+const route = useRoute();
+const purchases_id = route.params.id;
+
+// ...
+```
+
+```python
+class PurchaseDetailView(APIView):
+    """
+    发货详情
+    """
+    def get(self, request, id):
+        try:
+            # 1, 获取传入的参数
+            if not str(id).isdigit():
+                raise ValueError("ID必须为数字")
+
+            # 2, 配置查询语句
+            queryset = models.PurchaseDetail.objects.filter(purchase__id=id).select_related('inventory')
+
+            # 3, 找不到, 报错
+            if not queryset.exists():
+                return Response(
+                    {"detail": "未找到指定的采购详情"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            # 序列化详情数据
+            serializer = serializers.PurchaseDetailSerializer(queryset, many=True)
+
+            # 返回给前端, status默认200
+            return Response(serializer.data)
+
+        except ValueError as e:
+            # 如果发生错误, 报告错误
+            return Response({"detail": str(e)},status=status.HTTP_400_BAD_REQUEST)
+```
+
+7. 前端详情展示
+
+```
+
+```
+
+8. 最后完成`@/views/InventoryPurchase.vue`的`confirmPurchase()`:
+
+```js
+// 完成后跳转
+router.push({
+  name: "inventory_purchase_detail",
+  params: { id: result.data.purchase_id },
+});
+```
+
+9. 重写`库存列表`接口的`list()`方法: 我需要在类视图集中完成一件事: 计算库存总成本, 并交给前端
+
+```python
+# ~/apps/inventory/views.py.InventoryViewSet
+
+# ...
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+
+        total_cost = queryset.annotate(
+            current_inventory=F('on_road') + F('in_stock')
+        ).aggregate(
+            total=Sum(
+                ExpressionWrapper(
+                    F('current_inventory') * F('cost'),
+                    output_field=DecimalField(max_digits=20, decimal_places=2)
+                )
+            )
+        )['total'] or 0
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            # 4. 将总成本添加到响应中
+            response.data['total_cost'] = str(total_cost)
+            return response
+
+        # 无分页时的响应
+        serializer = self.get_serializer(queryset, many=True)
+
+        return Response({'data': serializer.data, 'total_cost': total_cost})
+```
+
+10. 最后进行全盘测试, 发现发货功能一切正常, 发货功能开发完毕!
