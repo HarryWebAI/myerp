@@ -2787,4 +2787,27 @@ router.push({
         return Response({'data': serializer.data, 'total_cost': total_cost})
 ```
 
-10. 最后进行全盘测试, 发现发货功能一切正常, 发货功能开发完毕!
+10. 最后进行全盘测试, 发现发货功能一切正常, 发货功能开发完毕! 合并到主分支
+
+- 合并时发现很多 python 缓存没有忽略, 如果切换分支, git 会认为我将丢失这些文件
+- 因此编辑`/myerp_backend/.gitignore`
+
+```conf
+__pycache__/
+*.py[cod]
+*$py.class
+```
+
+- 然后执行以下命令
+
+```
+git rm -r --cached .
+git add .
+git commit -m "更新.gitignore排除编译文件"
+
+git checkout master
+git merge newinventory
+git add .
+git commit -m "发货功能发货列表发货详情开发完毕"
+git push
+```
