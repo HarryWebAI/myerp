@@ -323,6 +323,6 @@ const openAddform = (form) => {
 }
 .body-card {
   width: 49.5%;
-  min-height: 888px;
+  min-height: 500px;
 }
 </style>

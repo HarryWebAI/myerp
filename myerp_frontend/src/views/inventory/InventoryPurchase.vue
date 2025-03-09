@@ -348,7 +348,7 @@ const getDisabledStatus = (inventoryId, currentRowId) => {
             <el-option
               v-for="inventory in inventories"
               :key="inventory.id"
-              :label="inventory.full_name + '￥' + inventory.cost"
+              :label="inventory.category.name + '-' + inventory.full_name + ', ￥' + inventory.cost"
               :value="inventory.id"
               :disabled="getDisabledStatus(inventory.id, row.inventory_id)"
             />
@@ -420,7 +420,7 @@ const getDisabledStatus = (inventoryId, currentRowId) => {
   </FormDialog>
 
   <!-- 确认发货表单 -->
-  <FormDialog title="确认发货?" v-model="confirmDialog" @submit="confirmPurchase">
+  <FormDialog title="确认发货?" v-model="confirmDialog" @submit="confirmPurchase" width="800">
     <el-form :model="purchaseData" label-width="80">
       <el-form-item label="发货品牌">
         <el-select v-model="purchaseData.brand_id" disabled>
@@ -443,7 +443,12 @@ const getDisabledStatus = (inventoryId, currentRowId) => {
         </div>
         <el-table :data="purchaseDataDetails">
           <el-table-column prop="full_name" label="名称" />
-          <el-table-column label="价格">
+          <el-table-column label="种类" width="100" align="center">
+            <template #default="scope">
+              {{ scope.row.category.name }}
+            </template>
+          </el-table-column>
+          <el-table-column label="价格" align="right">
             <template #default="scope">
               <span>
                 ￥{{ scope.row.cost }} × {{ scope.row.quantity }} =

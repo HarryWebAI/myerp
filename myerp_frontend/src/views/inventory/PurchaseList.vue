@@ -46,7 +46,7 @@ const showDetail = (id) => {
   <MainBox title="发货列表">
     <el-card>
       <template #header>
-        <h3>最新的发货记录</h3>
+        <h3>最新发货记录</h3>
       </template>
       <el-table :data="purchases">
         <el-table-column label="发货人员" width="120">
@@ -68,12 +68,12 @@ const showDetail = (id) => {
             </el-tooltip>
           </template>
         </el-table-column>
-        <el-table-column label="本次花费">
+        <el-table-column label="本次花费" align="center">
           <template #default="scope">
             <el-tag type="danger" class="price-tag"> ￥{{ scope.row.total_cost }} </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="100">
+        <el-table-column label="操作" width="100" align="center">
           <template #default="scope">
             <el-button @click="showDetail(scope.row.id)">
               <span>查看详情</span>
@@ -94,6 +94,6 @@ const showDetail = (id) => {
 
 <style scoped>
 .price-tag {
-  width: 160px;
+  width: 200px;
 }
 </style>
