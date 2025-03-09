@@ -24,12 +24,14 @@ let pagination = reactive({
 let brands = ref([])
 let categories = ref([])
 let inventories = ref([])
+let total_cost = ref(0)
 
 const getInventories = (page, params) => {
   inventoryHttp.requestInventoryData(page, params).then((result) => {
     if (result.status == 200) {
       inventories.value = result.data.results
       pagination.total = result.data.count
+      total_cost.value = result.data.total_cost
     } else {
       ElMessage.error('请求数据失败!')
     }
@@ -261,6 +263,11 @@ const onSearch = (action) => {
                 </el-tooltip>
                 <el-tooltip content="取消搜索" placement="bottom" effect="light">
                   <el-button @click="onSearch(false)" round icon="close" type="info" />
+                </el-tooltip>
+              </el-form-item>
+              <el-form-item>
+                <el-tooltip content="当前库存总成本" placement="bottom" effect="light">
+                  <span style="color: red">￥{{ total_cost }}</span>
                 </el-tooltip>
               </el-form-item>
             </el-form>

@@ -2649,4 +2649,142 @@ const confirmPurchase = () => {
 1. 前端规定路由为
 
 - `/inventory/purchase/list` : 发货记录列表
-- `/inventory/purchase/detail/<pk>`: 发货记录详情
+- `/inventory/purchase/detail/:id`: 发货记录详情
+
+2. 后端规定路由为
+
+- `(/api) /purchase/list`
+- `(/api) /purchase/detail/<pk>`
+
+3. 忘记了一个重要的字段: `create_time` 发货时间
+
+   - 修改模型后, 需要重新创建迁移文件
+   - 创建后, 执行迁移, 会给我一个选择 1:将`create_time`设置为当前时间, 2 退回去重改, 选择 1 再回车即可给所以已经创建好的字段加入当前时间了
+
+4. 后端列表接口(普通 APIView 如何实现分页?)
+
+```python
+class PurchaseList(APIView):
+    """
+    发货列表（支持分页查询）
+    """
+    permission_classes = [IsAuthenticated]
+    pagination_class = paginations.PurchasePagination
+
+    def get_queryset(self):
+        return models.Purchase.objects.select_related('brand', 'user').order_by('-create_time', '-id').all()
+
+    def get(self, request):
+        # 获取分页器实例
+        paginator = self.pagination_class()
+
+        # 获取查询集
+        queryset = self.get_queryset()
+
+        # 分页处理
+        page = paginator.paginate_queryset(queryset, request, view=self)
+
+        # 序列化数据
+        serializer = serializers.PurchaseListSerializer(page, many=True)
+
+        # 返回分页响应
+        return paginator.get_paginated_response(serializer.data)
+```
+
+5. 前端列表展示, 略
+
+6. 后端详情接口(如果获取传入的参数?)
+
+```js
+import { useRoute } from "vue-router";
+
+// .../details/:id, 如何获取id?
+const route = useRoute();
+const purchases_id = route.params.id;
+
+// ...
+```
+
+```python
+class PurchaseDetailView(APIView):
+    """
+    发货详情
+    """
+    def get(self, request, id):
+        try:
+            # 1, 获取传入的参数
+            if not str(id).isdigit():
+                raise ValueError("ID必须为数字")
+
+            # 2, 配置查询语句
+            queryset = models.PurchaseDetail.objects.filter(purchase__id=id).select_related('inventory')
+
+            # 3, 找不到, 报错
+            if not queryset.exists():
+                return Response(
+                    {"detail": "未找到指定的采购详情"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            # 序列化详情数据
+            serializer = serializers.PurchaseDetailSerializer(queryset, many=True)
+
+            # 返回给前端, status默认200
+            return Response(serializer.data)
+
+        except ValueError as e:
+            # 如果发生错误, 报告错误
+            return Response({"detail": str(e)},status=status.HTTP_400_BAD_REQUEST)
+```
+
+7. 前端详情展示
+
+```
+
+```
+
+8. 最后完成`@/views/InventoryPurchase.vue`的`confirmPurchase()`:
+
+```js
+// 完成后跳转
+router.push({
+  name: "inventory_purchase_detail",
+  params: { id: result.data.purchase_id },
+});
+```
+
+9. 重写`库存列表`接口的`list()`方法: 我需要在类视图集中完成一件事: 计算库存总成本, 并交给前端
+
+```python
+# ~/apps/inventory/views.py.InventoryViewSet
+
+# ...
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+
+        total_cost = queryset.annotate(
+            current_inventory=F('on_road') + F('in_stock')
+        ).aggregate(
+            total=Sum(
+                ExpressionWrapper(
+                    F('current_inventory') * F('cost'),
+                    output_field=DecimalField(max_digits=20, decimal_places=2)
+                )
+            )
+        )['total'] or 0
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            # 4. 将总成本添加到响应中
+            response.data['total_cost'] = str(total_cost)
+            return response
+
+        # 无分页时的响应
+        serializer = self.get_serializer(queryset, many=True)
+
+        return Response({'data': serializer.data, 'total_cost': total_cost})
+```
+
+10. 最后进行全盘测试, 发现发货功能一切正常, 发货功能开发完毕!

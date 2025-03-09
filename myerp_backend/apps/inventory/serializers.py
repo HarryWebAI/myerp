@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 from apps.brand.serializers import BrandSerializer
 from apps.category.serializers import CategorySerializer
+from apps.staff.serializers import StaffSerializer
 from . import models
 
 
@@ -35,3 +36,20 @@ class PurchaseSerializer(serializers.Serializer):
     brand_id = serializers.IntegerField(required=True)
     total_cost = serializers.DecimalField(required=True, max_digits=20, decimal_places=2)
     details = serializers.ListField(required=True)
+
+from rest_framework import serializers
+from .models import Purchase, Brand, ERPUser
+
+class PurchaseListSerializer(serializers.ModelSerializer):
+    brand = BrandSerializer(read_only=True)
+    user = StaffSerializer(read_only=True)
+    class Meta:
+        model = Purchase
+        fields = "__all__"
+
+class PurchaseDetailSerializer(serializers.ModelSerializer):
+    inventory = InventorySerializer(read_only=True)
+
+    class Meta:
+        model = models.PurchaseDetail
+        fields = '__all__'

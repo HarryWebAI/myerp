@@ -4,7 +4,7 @@ from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
+from django.db.models import F, Sum, ExpressionWrapper, DecimalField
 from . import models, serializers, paginations
 
 
@@ -40,6 +40,33 @@ class InventoryViewSet(viewsets.GenericViewSet,
 
         return queryset.order_by('-id').all()
 
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+
+        total_cost = queryset.annotate(
+            current_inventory=F('on_road') + F('in_stock')
+        ).aggregate(
+            total=Sum(
+                ExpressionWrapper(
+                    F('current_inventory') * F('cost'),
+                    output_field=DecimalField(max_digits=20, decimal_places=2)
+                )
+            )
+        )['total'] or 0
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response = self.get_paginated_response(serializer.data)
+            # 4. 将总成本添加到响应中
+            response.data['total_cost'] = str(total_cost)
+            return response
+
+        # 无分页时的响应
+        serializer = self.get_serializer(queryset, many=True)
+
+        return Response({'data': serializer.data, 'total_cost': total_cost})
+
 
 class AllInventoryViewSet(viewsets.GenericViewSet,
                           viewsets.mixins.ListModelMixin):
@@ -65,6 +92,11 @@ class AllInventoryViewSet(viewsets.GenericViewSet,
 
 
 class PurchaseView(APIView):
+    """
+    发货接口
+    """
+    permission_classes = [IsAuthenticated]
+
     def post(self, request):
         serializer = serializers.PurchaseSerializer(data=request.data)
         if not serializer.is_valid():
@@ -104,3 +136,55 @@ class PurchaseView(APIView):
             return Response({'purchase_id': purchase.id, 'message': "发货成功!"}, status=status.HTTP_201_CREATED)
         except:
             return Response({'detail': '发货失败!'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PurchaseList(APIView):
+    """
+    发货列表（支持分页查询）
+    """
+    permission_classes = [IsAuthenticated]
+    pagination_class = paginations.PurchasePagination
+
+    def get_queryset(self):
+        return models.Purchase.objects.select_related('brand', 'user').order_by('-create_time', '-id').all()
+
+    def get(self, request):
+        # 获取分页器实例
+        paginator = self.pagination_class()
+
+        # 获取查询集
+        queryset = self.get_queryset()
+
+        # 分页处理
+        page = paginator.paginate_queryset(queryset, request, view=self)
+
+        # 序列化数据
+        serializer = serializers.PurchaseListSerializer(page, many=True)
+
+        # 返回分页响应
+        return paginator.get_paginated_response(serializer.data)
+
+
+class PurchaseDetailView(APIView):
+    """
+    发货详情
+    """
+    def get(self, request, id):
+        try:
+            # 添加类型校验
+            if not str(id).isdigit():
+                raise ValueError("ID必须为数字")
+
+            queryset = models.PurchaseDetail.objects.filter(purchase__id=id).select_related('inventory')
+
+            if not queryset.exists():
+                return Response(
+                    {"detail": "未找到指定的采购详情"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            serializer = serializers.PurchaseDetailSerializer(queryset, many=True)
+            return Response(serializer.data)
+
+        except ValueError as e:
+            return Response({"detail": str(e)},status=status.HTTP_400_BAD_REQUEST)

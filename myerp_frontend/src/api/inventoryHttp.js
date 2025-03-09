@@ -37,10 +37,26 @@ const createPurchaseData = (data) => {
   return http.post(path, data)
 }
 
+// 采购列表
+const requestPurchaseData = (page) => {
+  const path = `/purchase/list/?page=${page}`
+
+  return http.get(path)
+}
+
+// 在途详情: 要么通过purchase_id获取单次采购, 要么通过brand_id获取品牌在途采购
+const requestPurchaseDetails = (id) => {
+  const path = `/purchase/detail/${id}`
+
+  return http.get(path)
+}
+
 export default {
   createInventoryData,
   requestInventoryData,
   updateInventoryData,
   requestAllInventoryData,
   createPurchaseData,
+  requestPurchaseData,
+  requestPurchaseDetails,
 }

@@ -5,6 +5,9 @@ import { ref, reactive, onMounted, watch } from 'vue'
 import brandAndCategoryHttp from '@/api/brandAndCategoryHttp'
 import inventoryHttp from '@/api/inventoryHttp'
 import { ElMessage } from 'element-plus'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
 
 /** 获取数据 */
 let brands = ref([])
@@ -59,6 +62,7 @@ let addButtonVisable = ref(false)
 watch(
   () => filterForm.brand_id,
   () => {
+    details.length = 0
     addButtonVisable.value = false
   },
 )
@@ -247,7 +251,7 @@ const confirmPurchase = () => {
     if (result.status == 201) {
       console.log(result.data)
       ElMessage.success(result.data.message)
-      // 跳转到发货详情页面...
+      router.push({ name: 'inventory_purchase_detail', params: { id: result.data.purchase_id } })
     } else {
       ElMessage.error('请求失败!')
     }
@@ -432,6 +436,11 @@ const getDisabledStatus = (inventoryId, currentRowId) => {
         <el-input v-model="purchaseData.total_cost"></el-input>
       </el-form-item>
       <el-form-item label="发货详情">
+        <div class="warning-info">
+          <h3>注意!</h3>
+          <p><small>请仔细核对发货信息,[确认]后不可更改!</small></p>
+          <p><small>如有错误请[返回]修改!</small></p>
+        </div>
         <el-table :data="purchaseDataDetails">
           <el-table-column prop="full_name" label="名称" />
           <el-table-column label="价格">
@@ -465,5 +474,12 @@ const getDisabledStatus = (inventoryId, currentRowId) => {
 .submit-btn {
   text-align: center;
   margin-top: 10px;
+}
+
+.warning-info {
+  width: 100%;
+  text-align: center;
+  color: red;
+  font-weight: bold;
 }
 </style>
