@@ -30,3 +30,8 @@ class InventorySerializer(serializers.ModelSerializer):
 
     def get_total_cost(self, obj):
         return "{:.2f}".format(obj.total_cost())
+
+class PurchaseSerializer(serializers.Serializer):
+    brand_id = serializers.IntegerField(required=True)
+    total_cost = serializers.DecimalField(required=True, max_digits=20, decimal_places=2)
+    details = serializers.ListField(required=True)

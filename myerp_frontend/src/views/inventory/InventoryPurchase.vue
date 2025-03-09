@@ -6,31 +6,6 @@ import brandAndCategoryHttp from '@/api/brandAndCategoryHttp'
 import inventoryHttp from '@/api/inventoryHttp'
 import { ElMessage } from 'element-plus'
 
-/** 品牌筛选 */
-let filterForm = reactive({
-  brand_id: 0,
-})
-let inventories = ref([])
-watch(
-  () => filterForm.brand_id,
-  (brand_id) => {
-    inventories.value = []
-    details.length = 0
-    inventoryHttp.requestAllInventoryData(brand_id).then((result) => {
-      if (result.status == 200) {
-        if (result.data.length > 0) {
-          inventories.value = result.data
-          ElMessage.success('请点击右侧绿色按钮开始发货!')
-        } else {
-          ElMessage.info('当前品牌没有任何商品!')
-        }
-      } else {
-        ElMessage.error('数据请求失败!')
-      }
-    })
-  },
-)
-
 /** 获取数据 */
 let brands = ref([])
 let categories = ref([])
@@ -51,6 +26,42 @@ onMounted(() => {
     }
   })
 })
+
+/** 品牌筛选 */
+let filterForm = reactive({
+  brand_id: 0,
+})
+let inventories = ref([])
+
+/** 锚定发货品牌 */
+const confirmBrand = () => {
+  inventories.value = []
+  details.length = 0
+  inventoryHttp.requestAllInventoryData(filterForm.brand_id).then((result) => {
+    if (result.status == 200) {
+      selectedInventoryIds.value.clear()
+      addButtonVisable.value = true
+      if (result.data.length > 0) {
+        inventories.value = result.data
+        ElMessage.success('请点击右侧绿色按钮开始发货!')
+      } else {
+        ElMessage.info('当前品牌没有任何商品!')
+      }
+    } else {
+      ElMessage.error('数据请求失败!')
+    }
+  })
+}
+
+/** 点我发货按钮开关 */
+let addButtonVisable = ref(false)
+
+watch(
+  () => filterForm.brand_id,
+  () => {
+    addButtonVisable.value = false
+  },
+)
 
 /** 动态表格 */
 let details = reactive([])
@@ -76,8 +87,17 @@ let createInventoryFormData = reactive({
 })
 const createInventoryForm = ref()
 const createInventory = () => {
+  if (createInventoryFormData.brand_id < 1) {
+    ElMessage.error('必须选择所属品牌!')
+    return
+  }
+  if (createInventoryFormData.category_id < 1) {
+    ElMessage.error('必须选择商品分类!')
+    return
+  }
   if (createInventoryFormData.cost < 0) {
-    ElMessage.error('进价不可以为复数!')
+    ElMessage.error('进价不可以为负数!')
+    return
   }
 
   createInventoryForm.value.validate((valid, fields) => {
@@ -141,16 +161,18 @@ const openForm = () => {
   createInventoryFormVisable.value = true
 }
 
-/** 发货 */
+/** 点击发货按钮处理数据 */
+// 最终提交的数据
 let purchaseData = reactive({
   brand_id: 0,
   total_cost: 0,
   details: [],
 })
-
+// 提交表单展示的发货详情
 let purchaseDataDetails = ref([])
-
+// 提交表单的开关
 let confirmDialog = ref(false)
+// 开始验证和处理数据
 const onPurchase = () => {
   purchaseData.brand_id = filterForm.brand_id
   purchaseData.total_cost = 0
@@ -162,32 +184,56 @@ const onPurchase = () => {
     return
   }
 
-  for (const detail of details) {
+  const inventoryIds = new Set() // 用于检测重复的集合
+  const duplicateItems = [] // 记录重复商品的名称
+
+  for (let detail of details) {
+    // 验证空行
     if (!detail.inventory_id) {
       ElMessage.error('错误!请删除空行!')
       return
     }
+    // 验证发货数量
     if (detail.quantity < 1) {
       ElMessage.error('错误!发货数量不能为0!')
       return
     }
+    // 验证是否重复发同一货物
+    if (inventoryIds.has(detail.inventory_id)) {
+      const itemName =
+        inventories.value.find((inv) => inv.id === detail.inventory_id)?.full_name || '未知商品'
+      duplicateItems.push(itemName)
+    } else {
+      inventoryIds.add(detail.inventory_id)
+    }
 
+    // 找到货物在货物列表中的索引
     let index = inventories.value.findIndex((inventory) => inventory.id == detail.inventory_id)
 
+    // 验证货物是否属于当前锚定的品牌
     if (inventories.value[index].brand.id != purchaseData.brand_id) {
       ElMessage.error('错误!单次发货必须同一品牌!')
       return
     }
 
+    // 计算总价
     purchaseData.total_cost += inventories.value[index].cost * detail.quantity
-    let item = inventories.value[index]
-    item.quantity = detail.quantity
 
-    purchaseDataDetails.value.push(item)
+    // 配置提交表单展示的发货详情
+    inventories.value[index].quantity = detail.quantity
+    purchaseDataDetails.value.push(inventories.value[index])
   }
 
+  // 验证货物是否重复
+  if (duplicateItems.length > 0) {
+    ElMessage.error(`禁止重复发货：${duplicateItems.join('、')}`)
+    return
+  }
+
+  // 配置提交详情
   purchaseData.details = details
 
+  // 打开表单
   confirmDialog.value = true
 }
 
@@ -196,7 +242,39 @@ const confirmPurchase = () => {
   if (purchaseData.brand_id != filterForm.brand_id) {
     ElMessage.error('错误!单次发货必须同一品牌!')
   }
-  console.log(purchaseData)
+
+  inventoryHttp.createPurchaseData(purchaseData).then((result) => {
+    if (result.status == 201) {
+      console.log(result.data)
+      ElMessage.success(result.data.message)
+      // 跳转到发货详情页面...
+    } else {
+      ElMessage.error('请求失败!')
+    }
+  })
+}
+
+/** 禁用重复option */
+// 新增响应式变量记录已选商品ID
+const selectedInventoryIds = ref(new Set())
+
+// 在每行的select选择事件中更新选中状态
+const handleSelectChange = (row, value) => {
+  // 移除该行之前选择的ID
+  selectedInventoryIds.value.delete(row.inventory_id)
+
+  // 添加新选择的ID
+  if (value !== 0) {
+    selectedInventoryIds.value.add(value)
+  }
+
+  // 更新当前行的选择
+  row.inventory_id = value
+}
+
+// 生成带禁用状态的选项
+const getDisabledStatus = (inventoryId, currentRowId) => {
+  return selectedInventoryIds.value.has(inventoryId) && inventoryId !== currentRowId
 }
 </script>
 
@@ -217,18 +295,28 @@ const confirmPurchase = () => {
               ></el-option>
             </el-select>
           </el-form-item>
+          <el-form-item>
+            <el-tooltip
+              content="注意!一次性只能发同一品牌的货!确认后不可更改!"
+              placement="right"
+              effect="light"
+              v-if="!addButtonVisable"
+            >
+              <el-button type="primary" @click="confirmBrand">确认品牌, 开始发货</el-button>
+            </el-tooltip>
+          </el-form-item>
         </el-form>
       </div>
 
       <!-- "增加一行"按钮 -->
       <div>
         <el-tooltip
-          v-if="filterForm.brand_id > 0"
+          v-if="addButtonVisable"
           content="点击增加一行数据!"
           placement="left"
           effect="light"
         >
-          <el-button @click="addRow" type="success" size="large" class="add-row-btn">
+          <el-button @click="addRow" type="success" class="add-row-btn">
             <el-icon><CirclePlus /></el-icon>
             <span>点我发货</span>
           </el-button>
@@ -241,7 +329,11 @@ const confirmPurchase = () => {
 
       <el-table-column label="发货商品">
         <template #default="{ row }">
-          <el-select v-model="row.inventory_id" placeholder="请选择" @click.stop filterable>
+          <el-select
+            v-model="row.inventory_id"
+            @change="(val) => handleSelectChange(row, val)"
+            filterable
+          >
             <el-option :value="0" label="请选择商品">
               <div class="option-container">
                 <el-button type="success" @click.stop="openForm()" size="small">
@@ -254,6 +346,7 @@ const confirmPurchase = () => {
               :key="inventory.id"
               :label="inventory.full_name + '￥' + inventory.cost"
               :value="inventory.id"
+              :disabled="getDisabledStatus(inventory.id, row.inventory_id)"
             />
           </el-select>
         </template>

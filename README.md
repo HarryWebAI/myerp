@@ -2116,7 +2116,7 @@ def get_queryset(self):
 - `git push origin --delete <分支名>`: 删除远程分支
 - `git fetch --prune`: 清理无效远程追踪分支
 
-### 发货功能
+### 发货功能页面
 
 1. 前端视图, **非常重要**: 包括动态增加表格, 下拉框实现搜索和新增功能, 提交表单前数据清洗等功能
 
@@ -2460,3 +2460,193 @@ app.use(ElementPlus, {
   locale: zhCn,
 });
 ```
+
+# 开发日志 D05
+
+### 后端发货功能
+
+1. 前端发送数据的格式: 根据`console.log(purchaseData);`, 得出格式: `{brand_id:所属的品牌, total_cost:本次发货的花费, details:[{inventory_id:发货的商品, quantity:发货的数量}, {...}]}`, 接下来根据这个格式设置模型
+2. 确认模型结构: 发货表, 发货详情表, 略
+3. 实现序列化器, 继承`Serializer`而不是`ModelSerializer`, 这里序列化器只帮助验证前端提交的数据并将其转为 json
+4. 实现接口, **非常重要**: 一次性修改多个数据表时, 一定要开启数据库原子事务, `~/apps/inventory/views.py`
+
+```python
+# 导包
+from django.db import transaction
+from django.db.models import F
+from rest_framework import viewsets, status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+# ...
+
+# 发货接口
+class PurchaseView(APIView):
+    def post(self, request):
+        # 使用序列化器验证数据
+        serializer = serializers.PurchaseSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({'detail': '错误, 数据不合规!'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 开始尝试写入数据
+        try:
+            # 开启数据库事务.原子事务: 要么都执行成功, 要么回滚到事务开启前
+            with transaction.atomic():
+
+                # 1, 写入采购表
+                purchase = models.Purchase.objects.create(
+                    brand_id=serializer.validated_data['brand_id'],
+                    total_cost=serializer.validated_data['total_cost'],
+                    user=request.user
+                )
+
+                # 2, 批量处理采购详情
+                # 空数组存放采购详情
+                details = []
+                # 开始遍历前端提交的采购详情
+                for detail in serializer.validated_data['details']:
+                    # 根据每条详情提供的 inventory_id 找到要修改的数据
+                    inventory = models.Inventory.objects.select_for_update().get(id=detail['inventory_id'])
+
+                    # 后端数据验证: 防止跨品牌发货
+                    if inventory.brand != purchase.brand:
+                        raise Exception('错误!单次发货必须同一品牌!')
+
+                    # 原子更新在途库存
+                    inventory.on_road = F('on_road') + detail['quantity']
+                    inventory.save(update_fields=['on_road'])
+
+                    # 构建采购明细对象
+                    details.append(models.PurchaseDetail(
+                        purchase=purchase, # 详情所属的发货行动编号
+                        inventory=inventory, # 所发的商品
+                        quantity=detail['quantity'] # 所发的数量
+                    ))
+
+                # 批量创建采购明细
+                models.PurchaseDetail.objects.bulk_create(details)
+
+            # 如果事务正常执行完, 说明没有问题, 给前端返回信息
+            return Response({'purchase_id':purchase.id,'message': "发货成功!"}, status=status.HTTP_201_CREATED)
+        except:
+            # 一旦发生任何错误, 数据库不会更新数据, 并且告诉前端发货失败
+            return Response({'detail': '发货失败!'}, status=status.HTTP_400_BAD_REQUEST)
+```
+
+5. 配置路由, 不再是注册视图集了, 而是只有一条路由, `/purchase/`, 略
+
+### 发货功能前端实现
+
+1. 前端测试时发现有问题: 创建和编辑商品时可以不选品牌和分类, 也可以访问到服务器接口, 再由服务器接口报错说 brand_id 或者 category_id 不能为 0, 但是这相当浪费服务器资源, 应该: 前端先验证, 数据没有错, 再请求接口
+
+```js
+// 新增或更新提交前... 以更新为例
+if (updateInventoryFormData.brand_id < 1) {
+  ElMessage.error("必须选择所属品牌!");
+  return;
+}
+if (updateInventoryFormData.category_id < 1) {
+  ElMessage.error("必须选择商品分类!");
+  return;
+}
+if (updateInventoryFormData.cost < 0) {
+  ElMessage.error("进价不可以为负数!");
+  return;
+}
+```
+
+2. 发货时, 禁用已经勾选过的 option: 又发现一个漏洞, 我可以反复发同一货物, 修改代码
+
+```vue
+<script setup>
+// ...
+
+/** 禁用重复option */
+// 新增响应式变量记录已选商品ID(禁用集合)
+const selectedInventoryIds = ref(new Set());
+
+// 在每行的select选择事件中更新选中状态
+const handleSelectChange = (row, value) => {
+  // 移除该行之前选择的ID
+  selectedInventoryIds.value.delete(row.inventory_id);
+
+  // 添加新选择的ID
+  if (value !== 0) {
+    selectedInventoryIds.value.add(value);
+  }
+
+  // 更新当前行的选择
+  row.inventory_id = value;
+};
+
+// 判断是否禁用
+const getDisabledStatus = (inventoryId, currentRowId) => {
+  return (
+    selectedInventoryIds.value.has(inventoryId) && inventoryId !== currentRowId
+  );
+};
+</script>
+
+<template>
+  <el-table-column label="发货商品">
+    <template #default="{ row }">
+      <!-- @change="绑定change事件, 当所选值发生改变时, 添加所选值到禁用集合中" -->
+      <el-select
+        v-model="row.inventory_id"
+        @change="(val) => handleSelectChange(row, val)"
+        filterable
+      >
+        <!-- 新增按钮 -->
+        <el-option :value="0" label="请选择商品">
+          <div class="option-container">
+            <el-button type="success" @click.stop="openForm()" size="small">
+              <span>首次采购 ? 点击新增 +</span>
+            </el-button>
+          </div>
+        </el-option>
+        <!-- 遍历锚定品牌的所有库存商品 -->
+        <!-- :disabled="调用判断是否禁用函数" -->
+        <el-option
+          v-for="inventory in inventories"
+          :key="inventory.id"
+          :label="inventory.full_name + '￥' + inventory.cost"
+          :value="inventory.id"
+          :disabled="getDisabledStatus(inventory.id, row.inventory_id)"
+        />
+      </el-select>
+    </template>
+  </el-table-column>
+</template>
+```
+
+3. 完成发货功能: 接口访问函数, `inventoryHttp.createPurchaseData`, 简单的封装, 略
+4. 发货功能
+
+```js
+const confirmPurchase = () => {
+  // 再次验证不能跨品牌发货
+  if (purchaseData.brand_id != filterForm.brand_id) {
+    ElMessage.error("错误!单次发货必须同一品牌!");
+  }
+
+  // 调用函数请求接口
+  inventoryHttp.createPurchaseData(purchaseData).then((result) => {
+    if (result.status == 201) {
+      // 只返回purchase_id: 新增的发货id, 以及message: '发货成功!'
+      console.log(result.data);
+      ElMessage.success(result.data.message);
+      // 跳转到发货详情页面...
+    } else {
+      ElMessage.error("请求失败!");
+    }
+  });
+};
+```
+
+### 发货列表和详情展示
+
+1. 前端规定路由为
+
+- `/inventory/purchase/list` : 发货记录列表
+- `/inventory/purchase/detail/<pk>`: 发货记录详情

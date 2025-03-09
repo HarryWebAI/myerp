@@ -1,5 +1,9 @@
-from rest_framework import viewsets
+from django.db import transaction
+from django.db.models import F
+from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from . import models, serializers, paginations
 
@@ -36,9 +40,9 @@ class InventoryViewSet(viewsets.GenericViewSet,
 
         return queryset.order_by('-id').all()
 
-class AllInventoryViewSet(viewsets.GenericViewSet,
-                       viewsets.mixins.ListModelMixin):
 
+class AllInventoryViewSet(viewsets.GenericViewSet,
+                          viewsets.mixins.ListModelMixin):
     """
     所有库存接口: 用于收发货, 不带分页
     """
@@ -58,3 +62,45 @@ class AllInventoryViewSet(viewsets.GenericViewSet,
             return None
 
         return queryset.order_by('-id').all()
+
+
+class PurchaseView(APIView):
+    def post(self, request):
+        serializer = serializers.PurchaseSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({'detail': '错误, 数据不合规!'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            with transaction.atomic():
+
+                purchase = models.Purchase.objects.create(
+                    brand_id=serializer.validated_data['brand_id'],
+                    total_cost=serializer.validated_data['total_cost'],
+                    user=request.user
+                )
+
+                # 批量处理采购详情
+                details = []
+                for detail in serializer.validated_data['details']:
+                    inventory = models.Inventory.objects.select_for_update().get(id=detail['inventory_id'])
+
+                    if inventory.brand != purchase.brand:
+                        raise Exception('错误!单次发货必须同一品牌!')
+
+                    # 原子更新在途库存
+                    inventory.on_road = F('on_road') + detail['quantity']
+                    inventory.save(update_fields=['on_road'])
+
+                    # 构建采购明细对象
+                    details.append(models.PurchaseDetail(
+                        purchase=purchase,
+                        inventory=inventory,
+                        quantity=detail['quantity']
+                    ))
+
+                # 批量创建采购明细
+                models.PurchaseDetail.objects.bulk_create(details)
+
+            return Response({'purchase_id': purchase.id, 'message': "发货成功!"}, status=status.HTTP_201_CREATED)
+        except:
+            return Response({'detail': '发货失败!'}, status=status.HTTP_400_BAD_REQUEST)

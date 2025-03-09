@@ -20,14 +20,21 @@ const updateInventoryData = (data) => {
   return http.put(path, data)
 }
 
-// 收发货接口: 获取指定品牌的所有商品
+// 收发货接口页面获取指定品牌的所有商品
 const requestAllInventoryData = (id) => {
   if (id < 1) {
-    return
+    return false
   }
   const path = `/allinventory/?brand_id=${id}`
 
   return http.get(path)
+}
+
+// 发货(采购)接口
+const createPurchaseData = (data) => {
+  const path = '/purchase/'
+
+  return http.post(path, data)
 }
 
 export default {
@@ -35,4 +42,5 @@ export default {
   requestInventoryData,
   updateInventoryData,
   requestAllInventoryData,
+  createPurchaseData,
 }

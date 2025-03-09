@@ -75,8 +75,17 @@ let createInventoryFormData = reactive({
 })
 const createInventoryForm = ref()
 const createInventory = () => {
+  if (createInventoryFormData.brand_id < 1) {
+    ElMessage.error('必须选择所属品牌!')
+    return
+  }
+  if (createInventoryFormData.category_id < 1) {
+    ElMessage.error('必须选择商品分类!')
+    return
+  }
   if (createInventoryFormData.cost < 0) {
-    ElMessage.error('进价不可以为复数!')
+    ElMessage.error('进价不可以为负数!')
+    return
   }
 
   createInventoryForm.value.validate((valid, fields) => {
@@ -113,8 +122,17 @@ let updateInventoryFormData = reactive({
 })
 const updateInventoryForm = ref()
 const updateInventory = () => {
+  if (updateInventoryFormData.brand_id < 1) {
+    ElMessage.error('必须选择所属品牌!')
+    return
+  }
+  if (updateInventoryFormData.category_id < 1) {
+    ElMessage.error('必须选择商品分类!')
+    return
+  }
   if (updateInventoryFormData.cost < 0) {
     ElMessage.error('进价不可以为负数!')
+    return
   }
 
   updateInventoryForm.value.validate((valid, fields) => {
