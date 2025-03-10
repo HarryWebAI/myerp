@@ -508,21 +508,16 @@ class ReceiveDetailDeleteView(APIView):
             inventory = models.Inventory.objects.select_for_update().get(id=detail.inventory.id)
             receive = models.Receive.objects.select_for_update().get(id=detail.receive.id)
             
-            # 3. 检查库存是否足够（已入库数量必须大于等于已售出数量）
-            if (inventory.in_stock - detail.quantity) < inventory.sold:
-                return Response({
-                    'detail': f'库存不足，当前库存{inventory.in_stock}，已售出{inventory.sold}，无法删除{detail.quantity}个单位'
-                }, status=status.HTTP_400_BAD_REQUEST)
             
-            # 4. 更新库存（减少实际库存，增加在途数量）
+            # 3. 更新库存（减少实际库存，增加在途数量）
             inventory.in_stock = F('in_stock') - detail.quantity
             inventory.on_road = F('on_road') + detail.quantity
             inventory.save(update_fields=['in_stock', 'on_road'])
             
-            # 5. 删除收货明细
+            # 4. 删除收货明细
             detail.delete()
             
-            # 6. 如果这是收货单的最后一个明细，删除收货单
+            # 5. 如果这是收货单的最后一个明细，删除收货单
             order_deleted = False  # 初始化变量
             if not models.ReceiveDetail.objects.filter(receive=receive).exists():
                 receive.delete()
