@@ -379,6 +379,9 @@ const getDisabledStatus = (inventoryId, rowIndex) => {
   font-weight: bold;
 }
 
+</style>
+
+<style>
 /** 自定义Elmessage */
 .blue-bg-message {
   background-color: #409eff !important;

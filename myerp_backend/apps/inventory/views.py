@@ -485,13 +485,16 @@ class PurchaseDetailDeleteView(APIView):
             detail.delete()
             
             # 7. 如果这是采购单的最后一个明细，删除采购单
+            order_deleted = False  # 初始化变量
             if not models.PurchaseDetail.objects.filter(purchase=purchase).exists():
                 purchase.delete()
+                order_deleted = True
             
             return Response({
                 'detail': '采购明细删除成功',
                 'deleted_quantity': detail.quantity,
-                'cost_reduction': str(cost_reduction)
+                'cost_reduction': str(cost_reduction),
+                'order_deleted': order_deleted
             })
             
         except models.PurchaseDetail.DoesNotExist:
@@ -531,12 +534,15 @@ class ReceiveDetailDeleteView(APIView):
             detail.delete()
             
             # 6. 如果这是收货单的最后一个明细，删除收货单
+            order_deleted = False  # 初始化变量
             if not models.ReceiveDetail.objects.filter(receive=receive).exists():
                 receive.delete()
+                order_deleted = True
             
             return Response({
                 'detail': '收货明细删除成功',
-                'deleted_quantity': detail.quantity
+                'deleted_quantity': detail.quantity,
+                'order_deleted': order_deleted
             })
             
         except models.ReceiveDetail.DoesNotExist:

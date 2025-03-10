@@ -1,11 +1,12 @@
 <script setup>
 import MainBox from '@/components/MainBox.vue'
 import { onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import inventoryHttp from '@/api/inventoryHttp'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const route = useRoute()
+const router = useRouter()
 const receive_id = route.params.id
 let details = ref([])
 
@@ -59,9 +60,16 @@ const handleSave = () => {
           if (response.status === 200) {
             ElMessage.success('收货记录删除成功')
             editDialogVisible.value = false
-            loadData() // 重新加载数据
+            // 检查返回数据中的order_deleted字段
+            const orderDeleted = response.data && response.data.order_deleted
+            if (orderDeleted) {
+              ElMessage.info('收货单已被删除，即将返回列表页面')
+              router.push({name:'inventory_receive_list'})
+            } else {
+              loadData() // 重新加载数据
+            }
           } else {
-            ElMessage.error(response.data.detail || '删除失败')
+            ElMessage.error(response.data?.detail || '删除失败')
           }
         }).catch(error => {
           ElMessage.error(error.response?.data?.detail || '删除失败')
@@ -147,5 +155,15 @@ const handleSave = () => {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.custom-form :deep(.custom-label) .el-form-item__label {
+  font-weight: bold;
+  font-size: 15px;
+  color: #2c3e50;
+}
+
+.custom-form :deep(.el-form-item__label)::after {
+  content: ' ';
 }
 </style>

@@ -1,11 +1,12 @@
 <script setup>
 import MainBox from '@/components/MainBox.vue'
 import { onMounted, ref, reactive } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import inventoryHttp from '@/api/inventoryHttp'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const route = useRoute()
+const router = useRouter()
 const purchases_id = route.params.id
 let details = ref([])
 const loading = ref(false)
@@ -71,9 +72,16 @@ const submitEdit = () => {
           if (result.status === 200) {
             ElMessage.success('采购记录删除成功')
             editVisible.value = false
-            fetchDetails()
+            // 检查返回数据中的order_deleted字段
+            const orderDeleted = result.data && result.data.order_deleted
+            if (orderDeleted) {
+              ElMessage.info('采购单已被删除，即将返回列表页面')
+              router.push({name:'inventory_purchase_list'})
+            } else {
+              fetchDetails()
+            }
           } else {
-            ElMessage.error(result.data.detail || '删除失败，请重试')
+            ElMessage.error(result.data?.detail || '删除失败，请重试')
           }
         })
         .catch(error => {
@@ -163,7 +171,7 @@ onMounted(() => {
         <el-form-item label="修改后数量：" class="custom-label">
           <el-input-number
             v-model="currentDetail.quantity"
-            :min="1"
+            :min="0"
             controls-position="right"
           ></el-input-number>
         </el-form-item>
@@ -183,5 +191,15 @@ onMounted(() => {
   margin-bottom: 16px;
   display: flex;
   justify-content: flex-end;
+}
+
+.custom-form :deep(.custom-label) .el-form-item__label {
+  font-weight: bold;
+  font-size: 15px;
+  color: #2c3e50;
+}
+
+.custom-form :deep(.el-form-item__label)::after {
+  content: ' ';
 }
 </style>
