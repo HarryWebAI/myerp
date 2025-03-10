@@ -396,20 +396,9 @@ class ReceiveDetailUpdateView(APIView):
             
             # 3. 获取关联的库存
             inventory = models.Inventory.objects.select_for_update().get(id=detail.inventory.id)
+
             
-            # 4. 安全性检查
-            # 如果是减少收货数量，需要确保不会导致负库存
-            if diff < 0:
-                # 计算该商品已售出/在途数量
-                sold_quantity = inventory.sold
-                
-                # 确保减少后的库存不会小于已售出数量
-                if (inventory.in_stock + diff) < sold_quantity:
-                    return Response({
-                        'detail': f'修改失败！该库存项库存数量不足以减少{-diff}个单位。当前库存{inventory.in_stock}，已售出{sold_quantity}'
-                    }, status=status.HTTP_400_BAD_REQUEST)
-            
-            # 5. 更新库存
+            # 4. 更新库存
             inventory.in_stock = F('in_stock') + diff
             # 同时需要更新on_road（在途数量会相应减少）
             if inventory.on_road >= diff:
@@ -417,11 +406,11 @@ class ReceiveDetailUpdateView(APIView):
             inventory.save(update_fields=['in_stock', 'on_road'])
             inventory.refresh_from_db()  # 刷新获取最新值
             
-            # 6. 更新收货明细
+            # 5. 更新收货明细
             detail.quantity = new_quantity
             detail.save(update_fields=['quantity'])
             
-            # 7. 可选：记录修改历史
+            # 6. 可选：记录修改历史
             # 如果有ReceiveModificationLog模型，可以在这里创建记录
             
             return Response({
