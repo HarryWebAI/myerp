@@ -37,14 +37,16 @@ class PurchaseSerializer(serializers.Serializer):
     total_cost = serializers.DecimalField(required=True, max_digits=20, decimal_places=2)
     details = serializers.ListField(required=True)
 
-from rest_framework import serializers
-from .models import Purchase, Brand, ERPUser
+class ReceiveSerializer(serializers.Serializer):
+    brand_id = serializers.IntegerField(required=True)
+    details = serializers.ListField(required=True)
+
 
 class PurchaseListSerializer(serializers.ModelSerializer):
     brand = BrandSerializer(read_only=True)
     user = StaffSerializer(read_only=True)
     class Meta:
-        model = Purchase
+        model = models.Purchase
         fields = "__all__"
 
 class PurchaseDetailSerializer(serializers.ModelSerializer):
@@ -53,3 +55,20 @@ class PurchaseDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.PurchaseDetail
         fields = '__all__'
+
+class ReceiveListSerializer(serializers.ModelSerializer):
+    brand_name = serializers.CharField(source='brand.name', read_only=True)
+    user_name = serializers.CharField(source='user.name', read_only=True)
+    
+    class Meta:
+        model = models.Receive
+        fields = ['id', 'brand_name', 'user_name', 'create_time']
+
+
+class ReceiveDetailSerializer(serializers.ModelSerializer):
+    inventory_name = serializers.CharField(source='inventory.full_name', read_only=True)
+    category_name = serializers.CharField(source='inventory.category.name', read_only=True)
+    
+    class Meta:
+        model = models.ReceiveDetail
+        fields = ['id', 'inventory_name', 'category_name', 'quantity']

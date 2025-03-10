@@ -2811,3 +2811,87 @@ git add .
 git commit -m "发货功能发货列表发货详情开发完毕"
 git push
 ```
+
+# 开发日志 D06
+
+### 试用 Cursor 实现收货功能
+
+> 不得不说 `cursor` 强大的编码能力令人叹服, 仅 1 个小时, 我凭借和它进行`有效的沟通`, 让他帮我完成了`收货`功能的编码实现, 包括前后端
+
+1. 必须要**懂得与 Cuosor(AI 大模型) 沟通**:
+
+   - 首先, 在用 cursor 打开项目时, 我要求他搞懂我的项目结构, 并且**复述**我的需求
+   - 然后, 我**明确**指令 curor, 他需要针对哪个文件, 代码片段, 或者单条语句进行修改, 即使新建文件, 我也会告诉它在哪里新建, 文件名称叫什么.
+   - 再者, 我不会笼统的告诉它, 帮我实现某个功能, 而是进行**需求拆解**, 一步一步地引导 cursor 帮助我完成编码工作
+   - 最后, 我必须斟字酌句, 确保我的**提问逻辑清晰**, 不会让它产生语义上的误解
+
+2. 开始引导 cursor 完成编码工作:
+
+   - 我先将整个项目的架构告诉了它, 即使它在`setting.Codebase Indexing`里已经明确表示他`100%`缕清了我整个项目的结构, 我依然告诉他: `myerp是一个我正在开发中的家具零售行业的仓库管理工具, 本项目的前端myerp_fronted采用vue+elementPlust实现交互UI, 后端myerp_backend采用python.django和drf实现api接口`, `我现在已经完成了staff, brand, category(员工, 品牌, 分类)模块的功能`, `以及部分 inventory(库存管理)模块的功能, 包括: 库存列表, 采购(purchase), 采购列表, 采购详情`, `接下来,请专注于协助我开发剩下的功能, 包括: 收货, 收货列表, 收货详情`, `请复述一遍我的需求, 确保你完全理解.`
+   - 然后, 在和他的对话框中, 我采用`claude 3.7模型`
+   - 然后, 我告诉他, 请参考`@myerp_backend/apps/inventory/models.py`里的采购, 采购详情模型部分代码, 帮我创建收货, 收货详情模型(Agent[ctrl+i])
+   - 然后, 我告诉他, 请参考视图层接口文件, 创建收货接口
+     > `cursor` 在这里准确地完成了我的指令, 用极短的时间书写了完全正确的代码, 我只需要执行迁移建表即可
+   - 接着我来到前端项目, 依葫芦画瓢, 告诉他参考采购视图, 创建收货视图, 参考采购列表, 详情, 创建收货列表详情
+
+3. 值得借鉴的代码:
+
+```vue
+<script setup>
+//... 解决option禁用问题
+
+/** 禁用重复option */
+// 使用Map来记录行索引到选择ID的映射，而不是简单的Set
+const selectedInventoryMap = ref(new Map());
+
+// 计算已选商品ID集合
+const getSelectedIds = () => {
+  const ids = new Set();
+  for (const id of selectedInventoryMap.value.values()) {
+    if (id !== 0) {
+      ids.add(id);
+    }
+  }
+  return ids;
+};
+
+// 在每行的select选择事件中更新选中状态
+const handleSelectChange = (row, rowIndex, value) => {
+  // 更新该行的选择到映射
+  selectedInventoryMap.value.set(rowIndex, value);
+};
+
+// 生成带禁用状态的选项
+const getDisabledStatus = (inventoryId, rowIndex) => {
+  // 如果当前行已经选择了这个ID，不禁用
+  if (selectedInventoryMap.value.get(rowIndex) === inventoryId) {
+    return false;
+  }
+
+  // 检查是否有其他行选择了这个ID
+  const selectedIds = getSelectedIds();
+  return selectedIds.has(inventoryId);
+};
+
+// ... 自定义Elmessage 样式
+ElMessage({
+  message: "请点击右侧蓝色按钮开始收货!",
+  type: "success",
+  // 在css里对这个样式进行修饰
+  customClass: "blue-bg-message",
+});
+</script>
+<style scoped>
+/* ... */
+/** 自定义Elmessage */
+.blue-bg-message {
+  background-color: #409eff !important;
+  border-color: #409eff !important;
+}
+
+.blue-bg-message .el-message__icon,
+.blue-bg-message .el-message__content {
+  color: #fff !important;
+}
+</style>
+```

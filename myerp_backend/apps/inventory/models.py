@@ -41,3 +41,19 @@ class PurchaseDetail(models.Model):
     purchase = models.ForeignKey(Purchase, on_delete=models.CASCADE, related_name='details', related_query_name='details')
     inventory = models.ForeignKey(Inventory, on_delete=models.CASCADE, related_name='purchase_details', related_query_name='purchase_details')
     quantity = models.IntegerField()
+
+class Receive(models.Model):
+    # 关联到品牌
+    brand = models.ForeignKey(Brand, on_delete=models.CASCADE, related_name='receive', related_query_name='receive')
+    # 负责入库的人员
+    user = models.ForeignKey(ERPUser, on_delete=models.CASCADE, related_name='receiver', related_query_name='receiver')
+    # 入库时间
+    create_time = models.DateTimeField(auto_now_add=True)
+
+class ReceiveDetail(models.Model):
+    # 关联到入库单
+    receive = models.ForeignKey(Receive, on_delete=models.CASCADE, related_name='details', related_query_name='details')
+    # 关联到库存项
+    inventory = models.ForeignKey(Inventory, on_delete=models.CASCADE, related_name='receive_details', related_query_name='receive_details')
+    # 入库数量
+    quantity = models.IntegerField()

@@ -42,7 +42,7 @@ const confirmBrand = () => {
   details.length = 0
   inventoryHttp.requestAllInventoryData(filterForm.brand_id).then((result) => {
     if (result.status == 200) {
-      selectedInventoryIds.value.clear()
+      selectedInventoryMap.value.clear()
       addButtonVisable.value = true
       if (result.data.length > 0) {
         inventories.value = result.data
@@ -259,26 +259,36 @@ const confirmPurchase = () => {
 }
 
 /** 禁用重复option */
-// 新增响应式变量记录已选商品ID
-const selectedInventoryIds = ref(new Set())
+// 使用Map来记录行索引到选择ID的映射，而不是简单的Set
+const selectedInventoryMap = ref(new Map())
+
+// 计算已选商品ID集合
+const getSelectedIds = () => {
+  const ids = new Set()
+  for (const id of selectedInventoryMap.value.values()) {
+    if (id !== 0) {
+      ids.add(id)
+    }
+  }
+  return ids
+}
 
 // 在每行的select选择事件中更新选中状态
-const handleSelectChange = (row, value) => {
-  // 移除该行之前选择的ID
-  selectedInventoryIds.value.delete(row.inventory_id)
-
-  // 添加新选择的ID
-  if (value !== 0) {
-    selectedInventoryIds.value.add(value)
-  }
-
-  // 更新当前行的选择
-  row.inventory_id = value
+const handleSelectChange = (row, rowIndex, value) => {
+  // 更新该行的选择到映射
+  selectedInventoryMap.value.set(rowIndex, value)
 }
 
 // 生成带禁用状态的选项
-const getDisabledStatus = (inventoryId, currentRowId) => {
-  return selectedInventoryIds.value.has(inventoryId) && inventoryId !== currentRowId
+const getDisabledStatus = (inventoryId, rowIndex) => {
+  // 如果当前行已经选择了这个ID，不禁用
+  if (selectedInventoryMap.value.get(rowIndex) === inventoryId) {
+    return false
+  }
+
+  // 检查是否有其他行选择了这个ID
+  const selectedIds = getSelectedIds()
+  return selectedIds.has(inventoryId)
 }
 </script>
 
@@ -332,10 +342,10 @@ const getDisabledStatus = (inventoryId, currentRowId) => {
       <el-table-column label="序号" width="80" type="index" align="center" />
 
       <el-table-column label="发货商品">
-        <template #default="{ row }">
+        <template #default="{ row, $index }">
           <el-select
             v-model="row.inventory_id"
-            @change="(val) => handleSelectChange(row, val)"
+            @change="(val) => handleSelectChange(row, $index, val)"
             filterable
           >
             <el-option :value="0" label="请选择商品">
@@ -350,7 +360,7 @@ const getDisabledStatus = (inventoryId, currentRowId) => {
               :key="inventory.id"
               :label="inventory.category.name + '-' + inventory.full_name + ', ￥' + inventory.cost"
               :value="inventory.id"
-              :disabled="getDisabledStatus(inventory.id, row.inventory_id)"
+              :disabled="getDisabledStatus(inventory.id, $index)"
             />
           </el-select>
         </template>
@@ -370,7 +380,9 @@ const getDisabledStatus = (inventoryId, currentRowId) => {
     </el-table>
 
     <div class="submit-btn">
-      <el-button type="primary" size="large" @click="onPurchase">点击发货</el-button>
+      <el-button type="primary" size="large" @click="onPurchase" v-if="addButtonVisable"
+        >点击发货</el-button
+      >
     </div>
   </MainBox>
 

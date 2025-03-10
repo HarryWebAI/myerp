@@ -44,9 +44,30 @@ const requestPurchaseData = (page) => {
   return http.get(path)
 }
 
-// 在途详情: 要么通过purchase_id获取单次采购, 要么通过brand_id获取品牌在途采购
+// 采购详情
 const requestPurchaseDetails = (id) => {
   const path = `/purchase/detail/${id}`
+
+  return http.get(path)
+}
+
+// 收货接口
+const createReceiveData = (data) => {
+  const path = '/receive/'
+
+  return http.post(path, data)
+}
+
+// 收货列表
+const requestReceiveData = (page) => {
+  const path = `/receive/list/?page=${page}`
+
+  return http.get(path)
+}
+
+// 收货详情
+const requestReceiveDetails = (id) => {
+  const path = `/receive/detail/${id}`
 
   return http.get(path)
 }
@@ -59,4 +80,7 @@ export default {
   createPurchaseData,
   requestPurchaseData,
   requestPurchaseDetails,
+  createReceiveData,
+  requestReceiveData,
+  requestReceiveDetails,
 }

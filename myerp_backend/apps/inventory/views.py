@@ -187,3 +187,102 @@ class PurchaseDetailView(APIView):
 
         except ValueError as e:
             return Response({"detail": str(e)},status=status.HTTP_400_BAD_REQUEST)
+
+
+class ReceiveView(APIView):
+    """
+    入库接口
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = serializers.ReceiveSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({'detail': '错误, 数据不合规!'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            with transaction.atomic():
+
+                receive = models.Receive.objects.create(
+                    brand_id=serializer.validated_data['brand_id'],
+                    user=request.user
+                )
+
+                # 批量处理入库详情
+                details = []
+                for detail in serializer.validated_data['details']:
+                    inventory = models.Inventory.objects.select_for_update().get(id=detail['inventory_id'])
+
+                    if inventory.brand != receive.brand:
+                        raise Exception('错误!单次入库必须同一品牌!')
+
+                    # 原子更新库存：减少on_road，增加in_stock
+                    inventory.on_road = F('on_road') - detail['quantity']
+                    inventory.in_stock = F('in_stock') + detail['quantity']
+                    inventory.save(update_fields=['on_road', 'in_stock'])
+
+                    # 构建入库明细对象
+                    details.append(models.ReceiveDetail(
+                        receive=receive,
+                        inventory=inventory,
+                        quantity=detail['quantity']
+                    ))
+
+                # 批量创建入库明细
+                models.ReceiveDetail.objects.bulk_create(details)
+
+            return Response({'receive_id': receive.id, 'message': "入库成功!"}, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({'detail': f'入库失败! {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ReceiveList(APIView):
+    """
+    收货列表（支持分页查询）
+    """
+    permission_classes = [IsAuthenticated]
+    pagination_class = paginations.PurchasePagination  # 可以复用或创建专用的分页器
+
+    def get_queryset(self):
+        return models.Receive.objects.select_related('brand', 'user').order_by('-create_time', '-id').all()
+
+    def get(self, request):
+        # 获取分页器实例
+        paginator = self.pagination_class()
+
+        # 获取查询集
+        queryset = self.get_queryset()
+
+        # 分页处理
+        page = paginator.paginate_queryset(queryset, request, view=self)
+
+        # 序列化数据
+        serializer = serializers.ReceiveListSerializer(page, many=True)
+
+        # 返回分页响应
+        return paginator.get_paginated_response(serializer.data)
+
+
+class ReceiveDetailView(APIView):
+    """
+    收货详情
+    """
+    def get(self, request, id):
+        try:
+            # 添加类型校验
+            if not str(id).isdigit():
+                raise ValueError("ID必须为数字")
+
+            queryset = models.ReceiveDetail.objects.filter(receive__id=id).select_related('inventory')
+
+            if not queryset.exists():
+                return Response(
+                    {"detail": "未找到指定的收货详情"},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            serializer = serializers.ReceiveDetailSerializer(queryset, many=True)
+            return Response(serializer.data)
+
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
