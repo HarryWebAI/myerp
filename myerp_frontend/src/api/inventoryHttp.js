@@ -72,6 +72,30 @@ const requestReceiveDetails = (id) => {
   return http.get(path)
 }
 
+const updatePurchaseDetail = (id, data) => {
+  const path = `/purchase/detail/update/${id}/`
+
+  return http.put(path, data)
+}
+
+const updateReceiveDetail = (id, data) => {
+  const path = `/receive/detail/update/${id}/`
+
+  return http.put(path, data)
+}
+
+const deletePurchaseDetail = (id) => {
+  const path = `/purchase/detail/delete/${id}/`
+
+  return http.delete(path)
+}
+
+const deleteReceiveDetail = (id) => {
+  const path = `/receive/detail/delete/${id}/`
+
+  return http.delete(path)
+}
+
 export default {
   createInventoryData,
   requestInventoryData,
@@ -83,4 +107,8 @@ export default {
   createReceiveData,
   requestReceiveData,
   requestReceiveDetails,
+  updatePurchaseDetail,
+  updateReceiveDetail,
+  deletePurchaseDetail,
+  deleteReceiveDetail
 }

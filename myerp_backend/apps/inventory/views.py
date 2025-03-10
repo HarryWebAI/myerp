@@ -286,3 +286,260 @@ class ReceiveDetailView(APIView):
 
         except ValueError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PurchaseDetailUpdateView(APIView):
+    """
+    采购明细修正接口
+    """
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def put(self, request, id):
+        try:
+            # 1. 获取并验证输入数据
+            new_quantity = request.data.get('quantity')
+            if new_quantity is None:
+                return Response({'detail': '必须提供新数量'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            try:
+                new_quantity = int(new_quantity)
+                if new_quantity < 0:
+                    raise ValueError
+            except (ValueError, TypeError):
+                return Response({'detail': '数量必须为正整数'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 2. 锁定并获取采购明细
+            detail = models.PurchaseDetail.objects.select_for_update().get(id=id)
+            old_quantity = detail.quantity
+            diff = new_quantity - old_quantity
+            
+            if diff == 0:
+                return Response({'detail': '数量未变更'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 3. 获取关联的库存和采购单
+            inventory = models.Inventory.objects.select_for_update().get(id=detail.inventory.id)
+            purchase = models.Purchase.objects.select_for_update().get(id=detail.purchase.id)
+            
+            # 4. 检查是否已有收货记录
+            # 获取该库存项关联的收货记录
+            related_receives = models.ReceiveDetail.objects.filter(
+                inventory=inventory,
+                receive__create_time__gt=purchase.create_time
+            ).aggregate(Sum('quantity'))['quantity__sum'] or 0
+            
+            # 如果减少数量，确保不会小于已收货数量
+            if diff < 0 and (inventory.on_road + diff) < 0:
+                return Response({
+                    'detail': f'修改失败！该库存项在途数量不足以减少{-diff}个单位'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 5. 更新库存
+            inventory.on_road = F('on_road') + diff
+            inventory.save(update_fields=['on_road'])
+            inventory.refresh_from_db()  # 刷新获取最新值
+            
+            # 6. 更新采购明细
+            detail.quantity = new_quantity
+            detail.save(update_fields=['quantity'])
+            
+            # 7. 更新采购单总成本
+            cost_diff = diff * inventory.cost
+            purchase.total_cost = F('total_cost') + cost_diff
+            purchase.save(update_fields=['total_cost'])
+            
+            # 8. 可选：记录修改历史
+            # 如果有PurchaseModificationLog模型，可以在这里创建记录
+            
+            return Response({
+                'detail': '采购明细更新成功',
+                'old_quantity': old_quantity,
+                'new_quantity': new_quantity,
+                'diff': diff,
+                'cost_diff': str(cost_diff)
+            })
+            
+        except models.PurchaseDetail.DoesNotExist:
+            return Response({'detail': '找不到指定的采购明细'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'detail': f'更新失败：{str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ReceiveDetailUpdateView(APIView):
+    """
+    收货明细修正接口
+    """
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def put(self, request, id):
+        try:
+            # 1. 获取并验证输入数据
+            new_quantity = request.data.get('quantity')
+            if new_quantity is None:
+                return Response({'detail': '必须提供新数量'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            try:
+                new_quantity = int(new_quantity)
+                if new_quantity < 0:
+                    raise ValueError
+            except (ValueError, TypeError):
+                return Response({'detail': '数量必须为正整数'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 2. 锁定并获取收货明细
+            detail = models.ReceiveDetail.objects.select_for_update().get(id=id)
+            old_quantity = detail.quantity
+            diff = new_quantity - old_quantity
+            
+            if diff == 0:
+                return Response({'detail': '数量未变更'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 3. 获取关联的库存
+            inventory = models.Inventory.objects.select_for_update().get(id=detail.inventory.id)
+            
+            # 4. 安全性检查
+            # 如果是减少收货数量，需要确保不会导致负库存
+            if diff < 0:
+                # 计算该商品已售出/在途数量
+                sold_quantity = inventory.sold
+                
+                # 确保减少后的库存不会小于已售出数量
+                if (inventory.in_stock + diff) < sold_quantity:
+                    return Response({
+                        'detail': f'修改失败！该库存项库存数量不足以减少{-diff}个单位。当前库存{inventory.in_stock}，已售出{sold_quantity}'
+                    }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 5. 更新库存
+            inventory.in_stock = F('in_stock') + diff
+            # 同时需要更新on_road（在途数量会相应减少）
+            if inventory.on_road >= diff:
+                inventory.on_road = F('on_road') - diff
+            inventory.save(update_fields=['in_stock', 'on_road'])
+            inventory.refresh_from_db()  # 刷新获取最新值
+            
+            # 6. 更新收货明细
+            detail.quantity = new_quantity
+            detail.save(update_fields=['quantity'])
+            
+            # 7. 可选：记录修改历史
+            # 如果有ReceiveModificationLog模型，可以在这里创建记录
+            
+            return Response({
+                'detail': '收货明细更新成功',
+                'old_quantity': old_quantity,
+                'new_quantity': new_quantity,
+                'diff': diff,
+                'current_in_stock': inventory.in_stock,
+                'current_on_road': inventory.on_road
+            })
+            
+        except models.ReceiveDetail.DoesNotExist:
+            return Response({'detail': '找不到指定的收货明细'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'detail': f'更新失败：{str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PurchaseDetailDeleteView(APIView):
+    """
+    删除采购明细接口
+    """
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def delete(self, request, id):
+        try:
+            # 1. 锁定并获取采购明细
+            detail = models.PurchaseDetail.objects.select_for_update().get(id=id)
+            
+            # 2. 锁定并获取相关的库存和采购单
+            inventory = models.Inventory.objects.select_for_update().get(id=detail.inventory.id)
+            purchase = models.Purchase.objects.select_for_update().get(id=detail.purchase.id)
+            
+            # 3. 检查是否已有收货记录
+            related_receives = models.ReceiveDetail.objects.filter(
+                inventory=inventory,
+                receive__create_time__gt=purchase.create_time
+            ).aggregate(Sum('quantity'))['quantity__sum'] or 0
+            
+            # 如果已有收货记录，不允许删除
+            if related_receives > 0:
+                return Response({
+                    'detail': '该采购明细已有收货记录，无法删除'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 4. 更新库存（减少在途数量）
+            if inventory.on_road < detail.quantity:
+                return Response({
+                    'detail': f'库存在途数量异常，当前在途数量{inventory.on_road}小于待删除数量{detail.quantity}'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            inventory.on_road = F('on_road') - detail.quantity
+            inventory.save(update_fields=['on_road'])
+            
+            # 5. 更新采购单总成本
+            cost_reduction = detail.quantity * inventory.cost
+            purchase.total_cost = F('total_cost') - cost_reduction
+            purchase.save(update_fields=['total_cost'])
+            
+            # 6. 删除采购明细
+            detail.delete()
+            
+            # 7. 如果这是采购单的最后一个明细，删除采购单
+            if not models.PurchaseDetail.objects.filter(purchase=purchase).exists():
+                purchase.delete()
+            
+            return Response({
+                'detail': '采购明细删除成功',
+                'deleted_quantity': detail.quantity,
+                'cost_reduction': str(cost_reduction)
+            })
+            
+        except models.PurchaseDetail.DoesNotExist:
+            return Response({'detail': '找不到指定的采购明细'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'detail': f'删除失败：{str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ReceiveDetailDeleteView(APIView):
+    """
+    删除收货明细接口
+    """
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def delete(self, request, id):
+        try:
+            # 1. 锁定并获取收货明细
+            detail = models.ReceiveDetail.objects.select_for_update().get(id=id)
+            
+            # 2. 锁定并获取相关的库存和收货单
+            inventory = models.Inventory.objects.select_for_update().get(id=detail.inventory.id)
+            receive = models.Receive.objects.select_for_update().get(id=detail.receive.id)
+            
+            # 3. 检查库存是否足够（已入库数量必须大于等于已售出数量）
+            if (inventory.in_stock - detail.quantity) < inventory.sold:
+                return Response({
+                    'detail': f'库存不足，当前库存{inventory.in_stock}，已售出{inventory.sold}，无法删除{detail.quantity}个单位'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 4. 更新库存（减少实际库存，增加在途数量）
+            inventory.in_stock = F('in_stock') - detail.quantity
+            inventory.on_road = F('on_road') + detail.quantity
+            inventory.save(update_fields=['in_stock', 'on_road'])
+            
+            # 5. 删除收货明细
+            detail.delete()
+            
+            # 6. 如果这是收货单的最后一个明细，删除收货单
+            if not models.ReceiveDetail.objects.filter(receive=receive).exists():
+                receive.delete()
+            
+            return Response({
+                'detail': '收货明细删除成功',
+                'deleted_quantity': detail.quantity
+            })
+            
+        except models.ReceiveDetail.DoesNotExist:
+            return Response({'detail': '找不到指定的收货明细'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'detail': f'删除失败：{str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
