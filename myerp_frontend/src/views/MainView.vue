@@ -5,6 +5,19 @@ import { ElMessageBox, ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import FormDialog from '@/components/FormDialog.vue'
 import loginHttp from '@/api/loginHttp'
+import {
+  HomeFilled,
+  Menu,
+  Grid,
+  Upload,
+  List,
+  Download,
+  Checked,
+  Tickets,
+  Money,
+  CirclePlus,
+  User
+} from '@element-plus/icons-vue'
 
 const router = useRouter()
 
@@ -112,39 +125,44 @@ const resetPassword = () => {
         <span>品牌种类</span>
       </el-menu-item>
 
-      <el-sub-menu index="3">
+      <el-menu-item index="3" :route="{ name: 'client_list' }">
+        <el-icon><User /></el-icon>
+        <span>客户管理</span>
+      </el-menu-item>
+
+      <el-sub-menu index="4">
         <template #title>
           <el-icon><Grid /></el-icon>
           <span>库存管理</span>
         </template>
-        <el-menu-item index="3-1" :route="{ name: 'inventory_purchase' }">
+        <el-menu-item index="4-1" :route="{ name: 'inventory_purchase' }">
           <el-icon><Upload /></el-icon>
           <span>申请发货</span>
         </el-menu-item>
-        <el-menu-item index="3-2" :route="{ name: 'inventory_purchase_list' }">
+        <el-menu-item index="4-2" :route="{ name: 'inventory_purchase_list' }">
           <el-icon><List /></el-icon>
           <span>发货记录</span>
         </el-menu-item>
-        <el-menu-item index="3-3" :route="{ name: 'inventory_receive' }">
+        <el-menu-item index="4-3" :route="{ name: 'inventory_receive' }">
           <el-icon><Download /></el-icon>
           <span>收货入库</span>
         </el-menu-item>
-        <el-menu-item index="3-4" :route="{ name: 'inventory_receive_list' }">
+        <el-menu-item index="4-4" :route="{ name: 'inventory_receive_list' }">
           <el-icon><Checked /></el-icon>
           <span>收货记录</span>
         </el-menu-item>
-        <el-menu-item index="3-5" :route="{ name: 'inventory_list' }">
+        <el-menu-item index="4-5" :route="{ name: 'inventory_list' }">
           <el-icon><Tickets /></el-icon>
           <span>库存列表</span>
         </el-menu-item>
       </el-sub-menu>
 
-      <el-sub-menu index="4">
+      <el-sub-menu index="5">
         <template #title>
           <el-icon><Money /></el-icon>
           <span>订单管理</span>
         </template>
-        <el-menu-item index="4-1">
+        <el-menu-item index="5-1">
           <el-icon><CirclePlus /></el-icon>
           <span>新增订单</span>
         </el-menu-item>

@@ -12,6 +12,8 @@ import PurchaseDetail from '@/views/inventory/PurchaseDetail.vue'
 import InventoryReceive from '@/views/inventory/InventoryReceive.vue'
 import ReceiveList from '@/views/inventory/ReceiveList.vue'
 import ReceiveDetail from '@/views/inventory/ReceiveDetail.vue'
+import ClientList from '@/views/client/ClientList.vue'
+import ClientDetail from '@/views/client/ClientDetail.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -68,6 +70,21 @@ const router = createRouter({
               path: 'receive/detail/:id',
               name: 'inventory_receive_detail',
               component: ReceiveDetail,
+            },
+          ],
+        },
+        {
+          path: 'client',
+          children: [
+            {
+              path: 'list',
+              name: 'client_list',
+              component: ClientList,
+            },
+            {
+              path: 'detail/:id',
+              name: 'client_detail',
+              component: ClientDetail,
             },
           ],
         },

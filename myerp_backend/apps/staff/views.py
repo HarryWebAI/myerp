@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 
 from .authentications import generate_jwt
 from .serializers import LoginSerializer, StaffSerializer,ResetPasswordSerializer
+from .models import ERPUser
 
 from rest_framework.permissions import IsAuthenticated
 
@@ -48,3 +49,23 @@ class ResetPasswordView(APIView):
         else:
             detail = list(serializer.errors.values())[0][0]
             return Response(data={'detail': detail}, status=status.HTTP_403_FORBIDDEN)
+
+class StaffListView(APIView):
+    """
+    获取员工列表接口
+    """
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        # 检查用户权限，只有老板或管理员才能获取员工列表
+        if not (request.user.is_boss or request.user.is_manager):
+            return Response(
+                data={'detail': '您没有权限获取员工列表'}, 
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # 获取所有员工
+        staff_list = ERPUser.objects.filter(is_active=True)
+        serializer = StaffSerializer(staff_list, many=True)
+        
+        return Response(serializer.data, status=status.HTTP_200_OK)
