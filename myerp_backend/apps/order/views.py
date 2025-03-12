@@ -10,7 +10,7 @@ import datetime
 
 from . import serializers
 from . import paginations
-from .models import Order, OrderDetail, OperationLog, BalancePayment
+from .models import Order, OrderDetail, OperationLog, BalancePayment, Installer
 from apps.inventory.models import Inventory
 
 class CreateOrderView(APIView):
@@ -121,14 +121,11 @@ class CreateOrderView(APIView):
                     )
                 
                 # 返回订单ID
-                return Response({'order_id': order.id, 'message': "订单创建成功!"}, status=status.HTTP_201_CREATED)
+            return Response({'order_id': order.id, 'message': "订单创建成功!"}, status=status.HTTP_201_CREATED)
         except Exception as e:
             return Response({'detail': f'订单创建失败! {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
         
-
-class OrderViewSet(viewsets.GenericViewSet,
-                   viewsets.mixins.ListModelMixin,
-                   viewsets.mixins.RetrieveModelMixin):
+class OrderViewSet(viewsets.ReadOnlyModelViewSet):
     """
     订单视图集
     """
@@ -230,7 +227,6 @@ class OrderViewSet(viewsets.GenericViewSet,
         
         return Response(response_data)
 
-
 class OrderDetailViewSet(viewsets.ReadOnlyModelViewSet):
     """
     订单详情视图集
@@ -247,7 +243,6 @@ class OrderDetailViewSet(viewsets.ReadOnlyModelViewSet):
         if order_id:
             queryset = queryset.filter(order_id=order_id)
         return queryset
-
 
 class OperationLogViewSet(viewsets.ReadOnlyModelViewSet):
     """
@@ -266,8 +261,7 @@ class OperationLogViewSet(viewsets.ReadOnlyModelViewSet):
             queryset = queryset.filter(order_id=order_id)
         return queryset
 
-
-class BalancePaymentViewSet(viewsets.ModelViewSet):
+class BalancePaymentViewSet(viewsets.mixins.CreateModelMixin, viewsets.GenericViewSet):
     """
     尾款支付视图集
     """
@@ -340,3 +334,119 @@ class BalancePaymentViewSet(viewsets.ModelViewSet):
             )
             
             # 更新订单状态 (Order模型的save方法会自动更新payment_status)
+
+class OrderInstallViewSet(viewsets.mixins.UpdateModelMixin, viewsets.GenericViewSet):
+    """
+    订单安装(一键出库)视图集
+    """
+    queryset = Order.objects.all()
+    serializer_class = serializers.OrderInstallSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def update(self, request, *args, **kwargs):
+        """重写update方法实现一键出库功能"""
+        # 1. 获取订单并验证数据
+        order_id = kwargs.get('pk')
+        try:
+            order = Order.objects.get(id=order_id)
+        except Order.DoesNotExist:
+            return Response({'detail': '订单不存在'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # 检查订单是否已经出库
+        if order.delivery_status == 2:  # 已送货
+            return Response({'detail': '订单已出库，不能重复操作'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 验证序列化器数据
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({'detail': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+        
+        validated_data = serializer.validated_data
+        installer = validated_data.get('installer_id')  # 现在这是一个Installer实例
+        installation_fee = validated_data.get('installation_fee')
+        transportation_fee = validated_data.get('transportation_fee')
+        
+        # 2. 开启数据库事务
+        try:
+            with transaction.atomic():
+                # 2.1 遍历订单详情
+                order_details = OrderDetail.objects.filter(order=order).select_related('inventory')
+                
+                # 先验证所有商品库存是否足够
+                insufficient_items = []
+                for detail in order_details:
+                    inventory = detail.inventory
+                    quantity = detail.quantity
+                    
+                    # 检查库存是否足够
+                    if inventory.in_stock < quantity:
+                        insufficient_items.append({
+                            'name': inventory.full_name() if hasattr(inventory, 'full_name') else inventory.name,
+                            'required': quantity,
+                            'available': inventory.in_stock
+                        })
+                
+                # 如果有库存不足的商品，返回错误
+                if insufficient_items:
+                    error_message = "以下商品库存不足：\n"
+                    for item in insufficient_items:
+                        error_message += f"- {item['name']}：需要 {item['required']} 件，库存仅 {item['available']} 件\n"
+                    return Response({'detail': error_message}, status=status.HTTP_400_BAD_REQUEST)
+                
+                # 库存充足，执行出库操作
+                for detail in order_details:
+                    inventory = detail.inventory
+                    quantity = detail.quantity
+                    
+                    # 2.1.2 同步减少been_order和in_stock数量
+                    inventory.been_order = F('been_order') - quantity
+                    inventory.in_stock = F('in_stock') - quantity
+                    inventory.sold = F('sold') + quantity
+                    inventory.save(update_fields=['been_order', 'in_stock', 'sold'])
+                
+                # 2.2 更新订单状态和相关信息
+                now = datetime.datetime.now()
+                order.delivery_status = 2  # 已送货
+                order.installer = installer  # 直接使用installer实例
+                order.installation_fee = installation_fee
+                order.transportation_fee = transportation_fee
+                order.installation_time = now
+                
+                # 重新计算毛利润 = 订单总额 - 成本总价 - 安装费用 - 运输费用
+                order.gross_profit = order.total_amount - order.total_cost - installation_fee - transportation_fee
+                order.save()
+                
+                # 2.3 记录操作日志
+                timestamp = now.strftime('%Y-%m-%d %H:%M:%S')
+                log_description = (
+                    f"于 {timestamp} 进行一键出库操作。"
+                    f"安装人员: {installer.name}, "
+                    f"安装费用: ¥{installation_fee}, "
+                    f"运输费用: ¥{transportation_fee}, "
+                    f"调整后毛利润: ¥{order.gross_profit}"
+                )
+                
+                OperationLog.objects.create(
+                    order=order,
+                    description=log_description,
+                    operator=request.user
+                )
+                
+                # 3. 返回响应
+                return Response({
+                    'detail': '订单出库成功',
+                    'order_id': order.id,
+                    'delivery_status': order.delivery_status,
+                    'gross_profit': float(order.gross_profit),
+                    'installation_time': order.installation_time
+                }, status=status.HTTP_200_OK)
+                
+        except Exception as e:
+            return Response({'detail': f'订单出库失败: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+class InstallerViewSet(viewsets.ModelViewSet):
+    """
+    安装师傅视图集
+    """
+    queryset = Installer.objects.all()
+    serializer_class = serializers.InstallerSerializer

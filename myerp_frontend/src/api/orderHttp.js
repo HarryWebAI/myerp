@@ -37,10 +37,17 @@ const payBalance = (data) => {
   return http.post(path, data)
 }
 
+// 一键出库orderInstall
+const orderInstall = (data, id) => {
+  const path = `/order-install/${id}/`
+  return http.put(path, data)
+}
+
 export default {
   createOrder,
   getOrderList,
   getOrderDetail,
   getOrderDetails,
-  payBalance
+  payBalance,
+  orderInstall
 }

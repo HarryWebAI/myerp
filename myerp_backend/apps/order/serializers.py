@@ -177,3 +177,29 @@ class OrderSerializer(serializers.ModelSerializer):
             'installer', 'installation_fee', 'transportation_fee', 'gross_profit',
             'details', 'operation_logs', 'address'
         ]
+
+class OrderInstallSerializer(serializers.Serializer):
+    """订单安装序列化器"""
+    installer_id = serializers.IntegerField(required=True)
+    installation_fee = serializers.DecimalField(required=True, max_digits=10, decimal_places=2)
+    transportation_fee = serializers.DecimalField(required=True, max_digits=10, decimal_places=2)
+    
+    def validate_installer_id(self, value):
+        """验证安装人员ID是否有效"""
+        try:
+            installer = Installer.objects.get(id=value)
+            return installer  # 返回安装人员实例而不是ID
+        except Installer.DoesNotExist:
+            raise serializers.ValidationError(f"找不到ID为{value}的安装人员")
+    
+    def validate(self, attrs):
+        """验证费用是否为负数"""
+        if attrs.get('installation_fee', 0) < 0:
+            raise serializers.ValidationError({"installation_fee": "安装费用不能为负数"})
+        
+        if attrs.get('transportation_fee', 0) < 0:
+            raise serializers.ValidationError({"transportation_fee": "运输费用不能为负数"})
+        
+        return attrs
+
+
