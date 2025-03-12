@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     'apps.category',  # 产品种类管理
     'apps.inventory',  # 库存管理
     'apps.client',  # 客户管理
+    'apps.order',  # 订单管理
 ]
 
 MIDDLEWARE = [

@@ -162,7 +162,7 @@ const resetPassword = () => {
           <el-icon><Money /></el-icon>
           <span>订单管理</span>
         </template>
-        <el-menu-item index="5-1">
+        <el-menu-item index="5-1" :route="{ name: 'order_create' }">
           <el-icon><CirclePlus /></el-icon>
           <span>新增订单</span>
         </el-menu-item>

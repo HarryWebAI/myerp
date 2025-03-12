@@ -38,11 +38,18 @@ const followClient = (uid, data) => {
   return http.post(path, data)
 }
 
+// 获取所有客户(不分页)
+const getAllClients = () => {
+  const path = '/allclient/'
+  return http.get(path)
+}
+
 export default {
   getClientList,
   getOverdueClients,
   createClient,
   getClientDetail,
   updateClient,
-  followClient
+  followClient,
+  getAllClients
 }

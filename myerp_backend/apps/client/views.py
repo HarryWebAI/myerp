@@ -155,3 +155,13 @@ class ClientModelViewSet(viewsets.GenericViewSet,
         # 不进行分页，直接返回所有需要跟进的客户
         serializer = self.get_serializer(overdue_clients, many=True)
         return Response(serializer.data)
+
+class AllClientViewSet(viewsets.GenericViewSet,
+                      viewsets.mixins.ListModelMixin):
+    """
+    获取所有客户
+    """
+    queryset = Client.objects.all()
+    serializer_class = ClientListSerializer
+    permission_classes = [IsAuthenticated]
+

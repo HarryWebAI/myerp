@@ -14,6 +14,7 @@ import ReceiveList from '@/views/inventory/ReceiveList.vue'
 import ReceiveDetail from '@/views/inventory/ReceiveDetail.vue'
 import ClientList from '@/views/client/ClientList.vue'
 import ClientDetail from '@/views/client/ClientDetail.vue'
+import CreateOrder from '@/views/order/CreateOrder.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -88,6 +89,16 @@ const router = createRouter({
             },
           ],
         },
+        {
+          path: 'order',
+          children: [
+            {
+              path: 'create',
+              name: 'order_create',
+              component: CreateOrder,
+            },
+          ],
+        }
       ],
     },
     {
