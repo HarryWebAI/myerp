@@ -32,6 +32,9 @@ class CreateOrderView(APIView):
                 validated_data = serializer.validated_data
                 details_data = validated_data['details']  # 不需要pop，直接获取即可
                 
+                # 计算待收尾款
+                pending_balance = validated_data['total_amount'] - validated_data['down_payment']
+                
                 # 创建订单
                 order = Order.objects.create(
                     order_number=validated_data['order_number'],
@@ -40,20 +43,20 @@ class CreateOrderView(APIView):
                     staff_id=validated_data['staff_id'],
                     total_amount=validated_data['total_amount'],
                     down_payment=validated_data['down_payment'],
-                    pending_balance=validated_data['total_amount'] - validated_data['down_payment'],
+                    pending_balance=pending_balance,
                     total_cost=validated_data['total_cost'],
                     gross_profit=validated_data['gross_profit'],
                     address=validated_data['address'],
                     # 默认值处理
                     received_balance=0,
                     delivery_status=1,  # 新订单
-                    payment_status=1,   # 未结清
+                    payment_status=2 if pending_balance == 0 else 1,  # 如果待收尾款为0，则设置为已结清
                     installation_fee=0,
                     transportation_fee=0
                 )
                 
                 # 验证成本总价并处理订单明细
-                calculated_cost = 0
+                calculated_cost = Decimal('0.00')
                 order_details = []
                 
                 # 批量处理订单详情
@@ -62,8 +65,8 @@ class CreateOrderView(APIView):
                     inventory = Inventory.objects.select_for_update().get(id=item['inventory_id'])
                     quantity = item['quantity']
                     
-                    # 计算成本
-                    item_cost = inventory.cost * quantity
+                    # 计算成本 - 确保使用Decimal类型计算
+                    item_cost = inventory.cost * Decimal(str(quantity))
                     calculated_cost += item_cost
                     
                     # 原子更新已订购数量
@@ -80,20 +83,6 @@ class CreateOrderView(APIView):
                 # 批量创建订单明细
                 OrderDetail.objects.bulk_create(order_details)
                 
-                # 创建尾款记录（如果有尾款）
-                pending_balance = order.pending_balance
-                if pending_balance > 0:
-                    BalancePayment.objects.create(
-                        order=order,
-                        amount=0,  # 初始收款为0
-                        payment_time=datetime.datetime.now(),
-                        operator=request.user
-                    )
-                # 如果没有尾款, 订单结清状态应该是已结清payment_status=2
-                else:
-                    order.payment_status = 2  # 已结清
-                    order.save(update_fields=['payment_status'])
-                
                 # 操作日志
                 now = datetime.datetime.now()
                 timestamp = now.strftime('%Y-%m-%d %H:%M:%S')
@@ -107,9 +96,9 @@ class CreateOrderView(APIView):
                     operator=request.user
                 )
 
-                # 校对成本总价，如有较大差异则添加警告日志
+                # 校对成本总价，如有任何差异则添加警告日志
                 user_provided_cost = validated_data['total_cost']
-                if abs(calculated_cost - user_provided_cost) > Decimal('1.00'):
+                if calculated_cost != user_provided_cost:
                     cost_difference = abs(calculated_cost - user_provided_cost)
                     warning_log = f"警告! 创建订单时, 您填写的成本总价({user_provided_cost})与系统自动计算的成本总价({calculated_cost})不一致! 差额: {cost_difference}"
                     

@@ -783,7 +783,7 @@ const handleClientChange = () => {
           "
           effect="dark"
         >
-          ¥{{ orderForm.gross_profit }}
+          ¥{{ Number(orderForm.gross_profit).toFixed(2) }}
         </el-tag>
       </el-descriptions-item>
       <el-descriptions-item label="待收尾款">
