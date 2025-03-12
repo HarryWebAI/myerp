@@ -19,5 +19,6 @@ urlpatterns = [
                   path('receive/list/', views.ReceiveList.as_view()),
                   path('receive/detail/<int:id>', views.ReceiveDetailView.as_view()),
                   path('receive/detail/update/<int:id>/', views.ReceiveDetailUpdateView.as_view(), name='receive-detail-update'),
-                  path('receive/detail/delete/<int:id>/', views.ReceiveDetailDeleteView.as_view(), name='receive-detail-delete')
+                  path('receive/detail/delete/<int:id>/', views.ReceiveDetailDeleteView.as_view(), name='receive-detail-delete'),
+                  path('download/', views.InventoryDownloadView.as_view(), name='inventory-download')
               ] + router.urls

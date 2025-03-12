@@ -16,7 +16,7 @@ import ClientList from '@/views/client/ClientList.vue'
 import ClientDetail from '@/views/client/ClientDetail.vue'
 import CreateOrder from '@/views/order/CreateOrder.vue'
 import OrderList from '@/views/order/OrderList.vue'
-
+import InventoryExcel from '@/views/inventory/InventoryExcel.vue'
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -72,6 +72,11 @@ const router = createRouter({
               path: 'receive/detail/:id',
               name: 'inventory_receive_detail',
               component: ReceiveDetail,
+            },
+            {
+              path: 'excel',
+              name: 'inventory_excel',
+              component: InventoryExcel,
             },
           ],
         },

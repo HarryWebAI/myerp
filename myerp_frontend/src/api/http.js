@@ -77,6 +77,21 @@ class Http {
       }
     }
   }
+
+  download = async (path) => {
+    try {
+      const response = await this.instance.get(path, { responseType: 'blob' })
+      return {
+        status: response.status,
+        data: response.data,
+      }
+    } catch (error) {
+      return {
+        status: error.response.status,
+        data: error.response.data,
+      }
+    }
+  }
 }
 
 export default Http

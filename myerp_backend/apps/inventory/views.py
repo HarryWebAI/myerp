@@ -5,7 +5,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.db.models import F, Sum, ExpressionWrapper, DecimalField
 from . import models, serializers, paginations
-
+import pandas as pd
+from django.http import HttpResponse
+from datetime import datetime
 
 class InventoryViewSet(viewsets.GenericViewSet,
                        viewsets.mixins.CreateModelMixin,
@@ -533,3 +535,42 @@ class ReceiveDetailDeleteView(APIView):
             return Response({'detail': '找不到指定的收货明细'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({'detail': f'删除失败：{str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+class InventoryDownloadView(APIView):
+    """
+    库存数据下载接口
+    """
+    # permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        # 获取所有库存数据
+        queryset = models.Inventory.objects.order_by('-brand__id', '-category__id', '-id').all()
+
+        results = queryset.values('id', 'name', 'brand__name', 'category__name', 'size', 'color', 'cost', 'on_road', 'in_stock', 'been_order', 'sold')
+
+        try: 
+            inventory_df = pd.DataFrame(results)
+
+            inventory_df = inventory_df.rename(columns={
+                'name': '名称',
+                'brand__name': '品牌',
+                'category__name': '分类',
+                'size': '尺码',
+                'color': '颜色',
+                'cost': '成本',
+                'on_road': '物流在途',
+                'in_stock': '当前在库',
+                'been_order': '已被订购',
+                'sold': '已售出'
+            })
+            
+            # 获取日期 yyyy-mm-dd
+            date = datetime.now().strftime('%Y-%m-%d')
+            response = HttpResponse(content_type='application/xlsx')
+            response['Content-Disposition'] = f"attachment; filename=库存列表_{date}.xlsx"
+            with pd.ExcelWriter(response) as writer:
+                inventory_df.to_excel(writer, sheet_name='库存信息', index=False)
+            
+            return response
+        except Exception as e:
+            return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)

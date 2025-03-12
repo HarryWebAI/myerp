@@ -155,6 +155,10 @@ const resetPassword = () => {
           <el-icon><Tickets /></el-icon>
           <span>库存列表</span>
         </el-menu-item>
+        <el-menu-item index="4-6" :route="{ name: 'inventory_excel' }">
+          <el-icon><Download /></el-icon>
+          <span>库存备份</span>
+        </el-menu-item>
       </el-sub-menu>
 
       <el-sub-menu index="5">

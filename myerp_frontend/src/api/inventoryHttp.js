@@ -96,6 +96,12 @@ const deleteReceiveDetail = (id) => {
   return http.delete(path)
 }
 
+const downloadInventoryData = () => {
+  const path = '/download/'
+
+  return http.download(path)
+}
+
 export default {
   createInventoryData,
   requestInventoryData,
@@ -110,5 +116,6 @@ export default {
   updatePurchaseDetail,
   updateReceiveDetail,
   deletePurchaseDetail,
-  deleteReceiveDetail
+  deleteReceiveDetail,
+  downloadInventoryData
 }
