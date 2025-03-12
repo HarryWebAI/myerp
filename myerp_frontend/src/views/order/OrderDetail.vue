@@ -119,11 +119,11 @@ const handleInstallSubmit = () => {
           <span>￥{{ order.total_cost }}</span>
         </el-descriptions-item>
         <el-descriptions-item label="毛利润">
-          <span :class="{ 'positive-profit': order.gross_profit > 0, 'negative-profit': order.gross_profit < 0 }">
+          <span :class="['table-profit', { 'positive-profit': order.gross_profit > 0, 'negative-profit': order.gross_profit < 0 }]">
             ￥{{ order.gross_profit }}
           </span>
         </el-descriptions-item>
-        <el-descriptions-item label="备注">{{ order.note || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="备注">{{ order.remark || '-' }}</el-descriptions-item>
       </el-descriptions>
 
       <!-- 订单明细表格 -->
@@ -154,12 +154,24 @@ const handleInstallSubmit = () => {
         </el-table>
       </div>
 
-      <div class="install-section">
+      <div class="install-section" v-if="order.delivery_status === 1">
         <div>
           <p class="install-note"> - 如果货物齐全, 经与客户沟通后, 可以安排师傅出货, 上门安装完毕后请点击右侧的"一键出库", 完成出库!</p>
         </div>
         <div>
           <el-button type="danger" @click="handleInstall()">一键出库</el-button>
+        </div>
+      </div>
+      <div class="install-section" v-else>
+        <div>
+          <p :class="['install-note', order.gross_profit >= 0 ? 'install-note-success' : 'install-note-danger']">
+            订单已出库，本单{{ order.gross_profit >= 0 ? '盈利' : '亏损' }}
+          </p>
+        </div>
+        <div>
+          <el-tag :type="order.gross_profit >= 0 ? 'success' : 'danger'">
+            ￥ {{ order.gross_profit }}
+          </el-tag>
         </div>
       </div>
 
@@ -230,6 +242,10 @@ const handleInstallSubmit = () => {
   font-weight: bold;
 }
 
+.table-profit {
+  font-weight: 500;
+}
+
 .positive-profit {
   color: #67C23A;
   font-weight: bold;
@@ -257,5 +273,15 @@ const handleInstallSubmit = () => {
   color: #909399;
   font-size: 12px;
   margin: 5px 0 0 0;
+}
+
+.install-note-success {
+  color: #67C23A;
+  font-weight: bold;
+}
+
+.install-note-danger {
+  color: #F56C6C;
+  font-weight: bold;
 }
 </style>

@@ -348,6 +348,7 @@ const submitOrder = () => {
     total_cost: orderForm.total_cost,
     gross_profit: orderForm.gross_profit,
     address: orderForm.address,
+    remark: orderForm.remark,
     details: orderForm.details
   };
 
@@ -732,15 +733,19 @@ const handleClientChange = () => {
               ></el-input-number>
             </el-tooltip>
           </el-form-item>
-        </el-col>
-        <el-col :span="12">
-          <el-form-item label="未计安装毛利">
+
+          <el-form-item label="初步毛利">
             <el-input-number
               v-model="orderForm.gross_profit"
               :precision="2"
               disabled
               style="width: 100%"
             ></el-input-number>
+          </el-form-item>
+        </el-col>
+        <el-col :span="12">
+          <el-form-item label="备注">
+            <el-input type="textarea" v-model="orderForm.remark" placeholder="请输入备注, 没有可以不输" resize="none" :rows="3" style="width: 100%;"></el-input>
           </el-form-item>
         </el-col>
       </el-row>
@@ -797,6 +802,7 @@ const handleClientChange = () => {
         </span>
       </el-descriptions-item>
       <el-descriptions-item label="安装地址" :span="3">{{ orderForm.address }}</el-descriptions-item>
+      <el-descriptions-item label="备注" :span="6">{{ orderForm.remark }}</el-descriptions-item>
     </el-descriptions>
 
     <div class="warning-info">

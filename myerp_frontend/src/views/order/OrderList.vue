@@ -22,6 +22,7 @@ let filterForm = reactive({
   payment_status: '',
   date_start: '',
   date_end: '',
+  order_number: '',
 })
 
 /**分页器 */
@@ -212,138 +213,130 @@ const paymentFormRules = {
     <el-card class="order-list-card">
       <template #header>
         <div class="dashboard-header">
-          <div class="filter-section">
-            <div class="filter-header">
-              <span class="filter-title">订单筛选</span>
-              <div class="filter-actions">
-                <el-button type="primary" @click="onSearch(true)" size="small" icon="Search">搜索</el-button>
-                <el-button @click="onSearch(false)" size="small" icon="RefreshRight">重置</el-button>
-              </div>
-            </div>
-
-            <!-- 使用Element Plus栅格布局 -->
-            <el-form size="small" class="filter-form" label-position="left">
-              <!-- 第一行：品牌、客户、员工 -->
-              <el-row :gutter="20">
-                <el-col :span="8">
-                  <el-form-item label="品牌" label-width="40px">
-                    <el-select v-model="filterForm.brand_id" placeholder="全部品牌" class="fixed-width-select">
-                      <el-option :value="0" label="全部品牌" />
-                      <el-option
-                        v-for="brand in brands"
-                        :label="brand.name"
-                        :value="brand.id"
-                        :key="brand.id"
-                      />
-                    </el-select>
-                  </el-form-item>
-                </el-col>
-                <el-col :span="8">
-                  <el-form-item label="客户" label-width="40px">
-                    <el-select v-model="filterForm.client_uid" placeholder="全部客户" class="width-220">
-                      <el-option :value="''" label="全部客户" />
-                      <el-option
-                        v-for="client in clients"
-                        :label="client.name"
-                        :value="client.uid"
-                        :key="client.uid"
-                      />
-                    </el-select>
-                  </el-form-item>
-                </el-col>
-                <el-col :span="8">
-                  <el-form-item label="员工" label-width="40px">
-                    <el-select v-model="filterForm.staff_uid" placeholder="全部员工" class="width-220">
-                      <el-option :value="''" label="全部员工" />
-                      <el-option
-                        v-for="staff in staffs"
-                        :label="staff.name"
-                        :value="staff.uid"
-                        :key="staff.uid"
-                      />
-                    </el-select>
-                  </el-form-item>
-                </el-col>
-              </el-row>
-
-              <!-- 第二行：发货状态、付款状态、订单日期 -->
-              <el-row :gutter="20">
-                <el-col :span="8">
-                  <div class="status-group">
-                    <el-form-item label="发货" label-width="40px">
-                      <el-select v-model="filterForm.delivery_status" class="status-select">
-                        <el-option
-                          v-for="option in deliveryStatusOptions"
-                          :key="option.value"
-                          :label="option.label"
-                          :value="option.value"
-                        />
-                      </el-select>
-                    </el-form-item>
-                    <el-form-item label="付款" label-width="40px" style="margin-left: 25px;">
-                      <el-select v-model="filterForm.payment_status" class="status-select">
-                        <el-option
-                          v-for="option in paymentStatusOptions"
-                          :key="option.value"
-                          :label="option.label"
-                          :value="option.value"
-                        />
-                      </el-select>
-                    </el-form-item>
-                  </div>
-                </el-col>
-                <el-col :span="8">
-                  <el-form-item label="日期" label-width="40px">
-                    <el-date-picker
-                      v-model="filterForm.date_start"
-                      type="date"
-                      placeholder="开始日期"
-                      format="YYYY-MM-DD"
-                      class="width-220"
-                    />
-                  </el-form-item>
-                </el-col>
-                <el-col :span="8">
-                  <el-form-item label="直到" label-width="40px">
-                    <el-date-picker
-                      v-model="filterForm.date_end"
-                      type="date"
-                      placeholder="结束日期"
-                      format="YYYY-MM-DD"
-                      class="width-220"
-                    />
-                  </el-form-item>
-                </el-col>
-              </el-row>
-            </el-form>
-          </div>
+          <!-- 统计数据部分 -->
           <div class="summary-dashboard">
-            <div class="summary-item-card">
-              <div class="summary-icon-container total-amount">
-                <el-icon><Money /></el-icon>
-              </div>
-              <div class="summary-details">
-                <div class="summary-label">当月总销量</div>
-                <div class="summary-value amount">￥{{ totalAmount }}</div>
+            <div class="summary-item">
+              <el-icon class="summary-icon total-amount"><Money /></el-icon>
+              <div class="summary-content">
+                <span class="summary-label">当月总销量</span>
+                <span class="summary-value amount">￥{{ totalAmount }}</span>
               </div>
             </div>
-            <div class="summary-item-card">
-              <div class="summary-icon-container total-profit">
-                <el-icon><TrendCharts /></el-icon>
-              </div>
-              <div class="summary-details">
-                <div class="summary-label">当月总利润</div>
-                <div class="summary-value profit">￥{{ totalGrossProfit }}</div>
+            <div class="summary-item">
+              <el-icon class="summary-icon total-profit"><TrendCharts /></el-icon>
+              <div class="summary-content">
+                <span class="summary-label">当月总利润</span>
+                <span class="summary-value profit">￥{{ totalGrossProfit }}</span>
               </div>
             </div>
-            <div class="summary-item-card">
-              <div class="summary-icon-container pending-payment">
-                <el-icon><WalletFilled /></el-icon>
+            <div class="summary-item">
+              <el-icon class="summary-icon pending-payment"><WalletFilled /></el-icon>
+              <div class="summary-content">
+                <span class="summary-label">待收尾款</span>
+                <span class="summary-value pending">￥{{ totalPendingBalance }}</span>
               </div>
-              <div class="summary-details">
-                <div class="summary-label">待收尾款</div>
-                <div class="summary-value pending">￥{{ totalPendingBalance }}</div>
-              </div>
+            </div>
+          </div>
+
+          <!-- 筛选部分 -->
+          <div class="filter-section">
+            <div class="filter-row">
+              <el-input
+                v-model="filterForm.order_number"
+                placeholder="订单编号"
+                clearable
+                class="filter-item"
+              >
+                <template #prefix>
+                  <el-icon><Document /></el-icon>
+                </template>
+              </el-input>
+
+              <el-select v-model="filterForm.brand_id" placeholder="选择品牌" clearable class="filter-item">
+                <template #prefix>
+                  <el-icon><Menu /></el-icon>
+                </template>
+                <el-option :value="0" label="全部品牌" />
+                <el-option
+                  v-for="brand in brands"
+                  :label="brand.name"
+                  :value="brand.id"
+                  :key="brand.id"
+                />
+              </el-select>
+
+              <el-select v-model="filterForm.client_uid" placeholder="选择客户" clearable class="filter-item">
+                <template #prefix>
+                  <el-icon><User /></el-icon>
+                </template>
+                <el-option :value="''" label="全部客户" />
+                <el-option
+                  v-for="client in clients"
+                  :label="client.name"
+                  :value="client.uid"
+                  :key="client.uid"
+                />
+              </el-select>
+
+              <el-select v-model="filterForm.staff_uid" placeholder="选择员工" clearable class="filter-item">
+                <template #prefix>
+                  <el-icon><UserFilled /></el-icon>
+                </template>
+                <el-option :value="''" label="全部员工" />
+                <el-option
+                  v-for="staff in staffs"
+                  :label="staff.name"
+                  :value="staff.uid"
+                  :key="staff.uid"
+                />
+              </el-select>
+            </div>
+
+            <div class="filter-row">
+              <el-select v-model="filterForm.delivery_status" placeholder="发货状态" clearable class="filter-item">
+                <template #prefix>
+                  <el-icon><Check /></el-icon>
+                </template>
+                <el-option
+                  v-for="option in deliveryStatusOptions"
+                  :key="option.value"
+                  :label="option.label"
+                  :value="option.value"
+                />
+              </el-select>
+
+              <el-select v-model="filterForm.payment_status" placeholder="付款状态" clearable class="filter-item">
+                <template #prefix>
+                  <el-icon><Check /></el-icon>
+                </template>
+                <el-option
+                  v-for="option in paymentStatusOptions"
+                  :key="option.value"
+                  :label="option.label"
+                  :value="option.value"
+                />
+              </el-select>
+
+              <el-date-picker
+                v-model="filterForm.date_start"
+                type="date"
+                placeholder="开始日期"
+                format="YYYY-MM-DD"
+                class="filter-item"
+              />
+
+              <el-date-picker
+                v-model="filterForm.date_end"
+                type="date"
+                placeholder="结束日期"
+                format="YYYY-MM-DD"
+                class="filter-item"
+              />
+            </div>
+
+            <div class="filter-actions">
+              <el-button type="primary" @click="onSearch(true)" icon="Search">搜索</el-button>
+              <el-button @click="onSearch(false)" icon="RefreshRight">重置</el-button>
             </div>
           </div>
         </div>
@@ -366,12 +359,12 @@ const paymentFormRules = {
             <span>{{ scope.row.sign_time ? timeFormatter.stringFromDate(scope.row.sign_time) : '-' }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="总金额">
+        <el-table-column label="总金额" class="table-amount">
           <template #default="scope">
             <span class="table-amount">￥{{ scope.row.total_amount }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="已付订金" >
+        <el-table-column label="首付订金" >
           <template #default="scope">
             <span class="table-down-payment">￥{{ scope.row.down_payment }}</span>
           </template>
@@ -385,7 +378,7 @@ const paymentFormRules = {
         </el-table-column>
         <el-table-column label="毛利润" >
           <template #default="scope">
-            <span :class="['table-profit', { 'positive-profit': scope.row.gross_profit > 0, 'negative-profit': scope.row.gross_profit < 0 }]">
+            <span :class="['table-profit', { 'positive-profit': scope.row.gross_profit >= 0, 'negative-profit': scope.row.gross_profit < 0 }]">
               ￥{{ scope.row.gross_profit }}
             </span>
           </template>
@@ -480,160 +473,125 @@ const paymentFormRules = {
 /* 主卡片样式 */
 .order-list-card {
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-  margin-bottom: 20px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
 }
 
-/* 头部仪表盘区域 */
+/* 头部布局 */
 .dashboard-header {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
 }
 
-/* 筛选区样式 */
-.filter-section {
-  background-color: #f9fafc;
-  border-radius: 8px;
-  padding: 16px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
-}
-
-.filter-header {
+/* 统计数据样式 */
+.summary-dashboard {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #ebeef5;
+  gap: 20px;
+  padding: 16px;
+  background: #f6f8fc;
+  border-radius: 8px;
 }
 
-.filter-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #303133;
+.summary-item {
+  flex: 1;
   display: flex;
   align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s;
 }
 
-.filter-title::before {
-  content: '';
-  display: inline-block;
-  width: 3px;
-  height: 16px;
-  background-color: #409EFF;
-  margin-right: 8px;
-  border-radius: 2px;
+.summary-item:hover {
+  transform: translateY(-2px);
+}
+
+.summary-icon {
+  padding: 8px;
+  border-radius: 8px;
+  font-size: 24px;
+}
+
+.total-amount {
+  background: #e6f3ff;
+  color: #409EFF;
+}
+
+.total-profit {
+  background: #e7f6e9;
+  color: #67C23A;
+}
+
+.pending-payment {
+  background: #fdf5e9;
+  color: #E6A23C;
+}
+
+.summary-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.summary-label {
+  font-size: 14px;
+  color: #606266;
+}
+
+.summary-value {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.amount { color: #409EFF; }
+.profit { color: #67C23A; }
+.pending { color: #E6A23C; }
+
+/* 筛选区域样式 */
+.filter-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+}
+
+.filter-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.filter-item {
+  width: 220px;
 }
 
 .filter-actions {
   display: flex;
-  gap: 8px;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid #ebeef5;
 }
 
-.filter-form {
-  width: 100%;
-}
+/* 响应式布局 */
+@media (max-width: 1200px) {
+  .filter-item {
+    width: 100%;
+  }
 
-/* 栅格布局样式 */
-.full-width-select {
-  width: 100%;
-}
+  .summary-dashboard {
+    flex-direction: column;
+  }
 
-.fixed-width-select {
-  width: 250px !important;
-}
-
-.width-220 {
-  width: 220px !important;
-}
-
-.status-group {
-  display: flex;
-  width: 100%;
-}
-
-.status-select {
-  width: 92px; /* 调整宽度，使两个状态选择器加label宽度等于品牌选择器加label宽度 */
-}
-
-/* 汇总卡片样式 */
-.summary-dashboard {
-  display: flex;
-  gap: 20px;
-  margin-top: 10px;
-}
-
-.summary-item-card {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  background: #fff;
-  padding: 16px;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-}
-
-.summary-item-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-}
-
-.summary-icon-container {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.summary-icon-container :deep(svg) {
-  width: 24px;
-  height: 24px;
-  color: white;
-}
-
-.total-amount {
-  background-color: #409EFF;
-}
-
-.total-profit {
-  background-color: #67C23A;
-}
-
-.pending-payment {
-  background-color: #E6A23C;
-}
-
-.summary-details {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.summary-label {
-  font-size: 13px;
-  color: #909399;
-}
-
-.summary-value {
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.amount {
-  color: #409EFF;
-}
-
-.profit {
-  color: #67C23A;
-}
-
-.pending {
-  color: #E6A23C;
+  .filter-row {
+    flex-direction: column;
+  }
 }
 
 /* 表格样式 */
@@ -663,6 +621,11 @@ const paymentFormRules = {
 
 .table-amount, .table-down-payment, .table-balance, .table-profit {
   font-weight: 500;
+}
+
+.table-amount{
+  color: #409EFF;
+  font-weight: bold;
 }
 
 .pending-balance {
@@ -705,27 +668,6 @@ const paymentFormRules = {
   margin-top: 20px;
   display: flex;
   justify-content: flex-end;
-}
-
-/* 响应式调整 */
-@media (max-width: 1200px) {
-  .status-group {
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .status-select {
-    width: 100%;
-  }
-
-  .fixed-width-select,
-  .width-220 {
-    width: 100% !important;
-  }
-
-  .summary-dashboard {
-    flex-direction: column;
-  }
 }
 
 /* 添加表单提示样式 */

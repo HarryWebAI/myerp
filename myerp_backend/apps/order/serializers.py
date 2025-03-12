@@ -19,6 +19,7 @@ class OrderCreateSerializer(serializers.Serializer):
     total_cost = serializers.DecimalField(required=True, max_digits=10, decimal_places=2)
     gross_profit = serializers.DecimalField(required=True, max_digits=10, decimal_places=2)
     address = serializers.CharField(required=True, max_length=200)
+    remark = serializers.CharField(required=False, max_length=200)
     details = serializers.ListField(
         child=serializers.DictField(
             child=serializers.IntegerField(),
@@ -175,7 +176,7 @@ class OrderSerializer(serializers.ModelSerializer):
             'received_balance', 'pending_balance', 'delivery_status', 'delivery_status_display',
             'payment_status', 'payment_status_display', 'total_cost', 'installation_time',
             'installer', 'installation_fee', 'transportation_fee', 'gross_profit',
-            'details', 'operation_logs', 'address'
+            'details', 'operation_logs', 'address', 'remark'
         ]
 
 class OrderInstallSerializer(serializers.Serializer):

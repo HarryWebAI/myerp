@@ -47,6 +47,7 @@ class CreateOrderView(APIView):
                     total_cost=validated_data['total_cost'],
                     gross_profit=validated_data['gross_profit'],
                     address=validated_data['address'],
+                    remark=validated_data['remark'],
                     # 默认值处理
                     received_balance=0,
                     delivery_status=1,  # 新订单
@@ -88,7 +89,7 @@ class CreateOrderView(APIView):
                 timestamp = now.strftime('%Y-%m-%d %H:%M:%S')
                 
                 # 创建基本操作日志
-                log_description = f"于 {timestamp} 创建订单, 订单总额: {order.total_amount}, 成本总价: {order.total_cost}, 初步毛利: {order.gross_profit}"
+                log_description = f"于 {timestamp} 创建订单, 订单总额: {order.total_amount}, 成本总价: {order.total_cost}, 初算毛利(未扣安装费和运输费): {order.gross_profit}"
                 
                 OperationLog.objects.create(
                     order=order,
@@ -147,6 +148,7 @@ class OrderViewSet(viewsets.ReadOnlyModelViewSet):
         queryset = super().get_queryset()
         
         # 获取查询参数
+        order_number = self.request.query_params.get('order_number')
         brand_id = self.request.query_params.get('brand_id')
         client_uid = self.request.query_params.get('client_uid')
         staff_uid = self.request.query_params.get('staff_uid')
@@ -156,6 +158,8 @@ class OrderViewSet(viewsets.ReadOnlyModelViewSet):
         date_end = self.request.query_params.get('date_end')
         
         # 应用过滤条件（只有当值不是默认值时）
+        if order_number and order_number != '':
+            queryset = queryset.filter(order_number__icontains=order_number)
         if brand_id and brand_id != '0':
             queryset = queryset.filter(brand_id=brand_id)
         if client_uid and client_uid != '':
@@ -268,7 +272,6 @@ class BalancePaymentViewSet(viewsets.mixins.CreateModelMixin, viewsets.GenericVi
     queryset = BalancePayment.objects.all().order_by('-payment_time')
     serializer_class = serializers.BalancePaymentSerializer
     permission_classes = [IsAuthenticated]
-    pagination_class = paginations.BalancePaymentPagination
     
     def get_queryset(self):
         """根据订单ID过滤支付记录"""
@@ -423,7 +426,7 @@ class OrderInstallViewSet(viewsets.mixins.UpdateModelMixin, viewsets.GenericView
                     f"安装人员: {installer.name}, "
                     f"安装费用: ¥{installation_fee}, "
                     f"运输费用: ¥{transportation_fee}, "
-                    f"调整后毛利润: ¥{order.gross_profit}"
+                    f"最终毛利(扣除安装费和运输费): ¥{order.gross_profit}"
                 )
                 
                 OperationLog.objects.create(
