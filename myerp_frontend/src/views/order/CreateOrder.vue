@@ -23,6 +23,7 @@ const orderForm = reactive({
   pending_balance: 0,
   total_cost: 0,
   gross_profit: 0,
+  address: '',
   details: []
 });
 
@@ -48,6 +49,10 @@ const orderFormRules = reactive({
   down_payment: [
     { required: true, message: '首付定金不能为空', trigger: 'blur' },
     { type: 'number', min: 0, message: '首付定金必须大于等于0', trigger: 'blur' }
+  ],
+  address: [
+    { required: true, message: '安装地址不能为空', trigger: 'blur' },
+    { max: 200, message: '安装地址不能超过200个字符', trigger: 'blur' }
   ]
 });
 
@@ -63,6 +68,7 @@ onMounted(() => {
 // 获取所有客户
   clientHttp.getAllClients().then(result => {
     if (result.status === 200) {
+      console.log(result.data)
       clients.value = result.data;
     } else {
       ElMessage.error('获取客户数据失败！');
@@ -341,6 +347,7 @@ const submitOrder = () => {
     down_payment: orderForm.down_payment,
     total_cost: orderForm.total_cost,
     gross_profit: orderForm.gross_profit,
+    address: orderForm.address,
     details: orderForm.details
   };
 
@@ -492,6 +499,21 @@ const createInventory = () => {
     }
   });
 };
+
+// 客户选择变化时的处理
+const handleClientChange = () => {
+  // 根据客户ID获取客户地址
+  if (orderForm.client_id) {
+    const selectedClient = clients.value.find(c => c.uid === orderForm.client_id);
+    if (selectedClient && selectedClient.address) {
+      orderForm.address = selectedClient.address;
+    } else {
+      orderForm.address = '';
+    }
+  } else {
+    orderForm.address = '';
+  }
+};
 </script>
 
 <template>
@@ -512,7 +534,7 @@ const createInventory = () => {
           </el-form-item>
         </el-col>
         <el-col :span="8">
-          <el-form-item label="品牌" prop="brand_id">
+          <el-form-item label="签单品牌" prop="brand_id">
             <el-select
               v-model="orderForm.brand_id"
               placeholder="请选择品牌"
@@ -530,12 +552,13 @@ const createInventory = () => {
           </el-form-item>
         </el-col>
         <el-col :span="8">
-          <el-form-item label="客户" prop="client_id">
+          <el-form-item label="签单客户" prop="client_id">
             <el-select
               v-model="orderForm.client_id"
               placeholder="请选择客户"
               filterable
               style="width: 100%"
+              @change="handleClientChange"
             >
               <el-option
                 v-for="client in clients"
@@ -593,10 +616,17 @@ const createInventory = () => {
       </el-row>
 
       <el-row :gutter="20">
-        <el-col :span="8"></el-col>
-        <el-col :span="8"></el-col>
+        <el-col :span="16">
+          <el-form-item label="送货地址" prop="address">
+            <el-input
+              v-model="orderForm.address"
+              placeholder="选择客户后将自动填入客户地址, 如有不同请更正!"
+              type="text"
+            ></el-input>
+          </el-form-item>
+        </el-col>
         <el-col :span="8">
-          <el-form-item label="待收尾款">
+          <el-form-item label="! 待收尾款">
             <el-input-number
               v-model="orderForm.pending_balance"
               :precision="2"
@@ -766,6 +796,7 @@ const createInventory = () => {
           ¥{{ orderForm.pending_balance }}
         </span>
       </el-descriptions-item>
+      <el-descriptions-item label="安装地址" :span="3">{{ orderForm.address }}</el-descriptions-item>
     </el-descriptions>
 
     <div class="warning-info">

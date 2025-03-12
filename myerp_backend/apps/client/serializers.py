@@ -24,7 +24,7 @@ class ClientListSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Client
-        fields = ['uid', 'name', 'telephone', 'level', 'level_display', 
+        fields = ['uid', 'name', 'telephone', 'address', 'level', 'level_display', 
                   'last_follow_time', 'latest_follow_time', 'is_overdue', 
                   'staff', 'staff_name', 'created_at']
         read_only_fields = ['uid', 'created_at', 'last_follow_time']

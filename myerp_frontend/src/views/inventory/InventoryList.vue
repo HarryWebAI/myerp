@@ -308,7 +308,12 @@ const onSearch = (action) => {
         </el-table-column>
         <el-table-column label="实际可售" width="80">
           <template #default="scope">
-            <el-tag type="info" class="table-tag">{{ scope.row.can_be_sold }}</el-tag>
+            <el-tooltip content="实际可售小于0时, 说明您该发货了!"  placement="top" effect="light">
+            <el-tag
+              :type="scope.row.can_be_sold > 10 ? 'warning' :
+                    scope.row.can_be_sold < 0 ? 'danger' : 'info'"
+              class="table-tag">{{ scope.row.can_be_sold }}</el-tag>
+            </el-tooltip>
           </template>
         </el-table-column>
         <el-table-column label="单个进价" width="130">

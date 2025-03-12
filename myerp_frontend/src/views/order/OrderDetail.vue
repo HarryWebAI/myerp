@@ -3,39 +3,24 @@ import MainBox from '@/components/MainBox.vue'
 import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import orderHttp from '@/api/orderHttp'
+import timeFormatter from '@/utils/timeFormatter'
 import { ElMessage } from 'element-plus'
 
 const route = useRoute()
 const orderId = route.params.id
 const order = ref(null)
-const orderDetails = ref([])
 
 onMounted(() => {
   // 获取订单详情
   orderHttp.getOrderDetail(orderId).then((result) => {
     if (result.status === 200) {
+      console.log(result.data)
       order.value = result.data
     } else {
       ElMessage.error('获取订单详情失败!')
     }
   })
-
-  // 获取订单明细
-  orderHttp.getOrderDetails({ order_id: orderId }).then((result) => {
-    if (result.status === 200) {
-      orderDetails.value = result.data.results
-    } else {
-      ElMessage.error('获取订单明细失败!')
-    }
-  })
 })
-
-// 日期格式化
-const formatDate = (dateString) => {
-  if (!dateString) return '-'
-  const date = new Date(dateString)
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
-}
 </script>
 
 <template>
@@ -65,12 +50,12 @@ const formatDate = (dateString) => {
 
       <!-- 订单基本信息 -->
       <el-descriptions title="订单信息" :column="3" border>
-        <el-descriptions-item label="下单日期">{{ formatDate(order.created_at) }}</el-descriptions-item>
+        <el-descriptions-item label="下单日期">{{ order.sign_time ? timeFormatter.stringFromDate(order.sign_time) : '-' }}</el-descriptions-item>
         <el-descriptions-item label="客户">{{ order.client?.name || '-' }}</el-descriptions-item>
         <el-descriptions-item label="品牌">{{ order.brand?.name || '-' }}</el-descriptions-item>
         <el-descriptions-item label="业务员">{{ order.staff?.name || '-' }}</el-descriptions-item>
         <el-descriptions-item label="安装师傅">{{ order.installer?.name || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="收货地址">{{ order.address || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="安装地址">{{ order.address || '-' }}</el-descriptions-item>
         <el-descriptions-item label="总金额">
           <span class="amount">￥{{ order.total_amount }}</span>
         </el-descriptions-item>
@@ -96,31 +81,26 @@ const formatDate = (dateString) => {
       <!-- 订单明细表格 -->
       <div class="details-section">
         <h3>订单明细</h3>
-        <el-table :data="orderDetails" border style="width: 100%">
-          <el-table-column prop="inventory.full_name" label="商品名称" min-width="200" />
-          <el-table-column prop="size" label="规格" width="100" />
-          <el-table-column prop="color" label="颜色" width="100" />
+        <el-table :data="order.details" border style="width: 100%">
+          <el-table-column label="商品名称" min-width="200">
+            <template #default="scope">
+              {{ scope.row.inventory_data?.full_name || '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column label="分类" width="100">
+            <template #default="scope">
+              {{ scope.row.inventory_data?.category || '-' }}
+            </template>
+          </el-table-column>
           <el-table-column prop="quantity" label="数量" width="80" align="center" />
           <el-table-column label="单价" width="120">
             <template #default="scope">
-              <span>￥{{ scope.row.unit_price }}</span>
+              <span>￥{{ scope.row.inventory_data?.cost || '0' }}</span>
             </template>
           </el-table-column>
           <el-table-column label="金额" width="120">
             <template #default="scope">
-              <span>￥{{ scope.row.amount }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="成本" width="120">
-            <template #default="scope">
-              <span>￥{{ scope.row.cost }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="利润" width="120">
-            <template #default="scope">
-              <span :class="{ 'positive-profit': scope.row.profit > 0, 'negative-profit': scope.row.profit < 0 }">
-                ￥{{ scope.row.profit }}
-              </span>
+              <span>￥{{ (scope.row.inventory_data?.cost || 0) * scope.row.quantity }}</span>
             </template>
           </el-table-column>
         </el-table>
@@ -133,13 +113,11 @@ const formatDate = (dateString) => {
           <el-timeline-item
             v-for="(log, index) in order.operation_logs"
             :key="index"
-            :timestamp="formatDate(log.created_at)"
-            :type="log.operation_type === 'create' ? 'primary' : 'success'"
+            :timestamp="log.created_at ? timeFormatter.stringFromDateTime(log.created_at) : '-'"
+            type="primary"
           >
-            {{ log.operation_type === 'create' ? '创建订单' :
-               log.operation_type === 'update' ? '更新订单' :
-               log.operation_type === 'payment' ? '支付尾款' : log.operation_type }}
-            <p class="log-note">{{ log.note || '无备注' }}</p>
+            {{ log.description }}
+            <p class="log-note">{{ log.operator_name ? `操作人: ${log.operator_name}` : '' }}</p>
           </el-timeline-item>
         </el-timeline>
       </div>

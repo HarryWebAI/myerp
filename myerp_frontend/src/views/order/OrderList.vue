@@ -3,12 +3,15 @@ import MainBox from '@/components/MainBox.vue'
 import FormDialog from '@/components/FormDialog.vue'
 import PaginationView from '@/components/PaginationView.vue'
 import { onMounted, reactive, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import brandAndCategoryHttp from '@/api/brandAndCategoryHttp'
 import clientHttp from '@/api/clientHttp'
 import orderHttp from '@/api/orderHttp'
 import staffHttp from '@/api/staffHttp'
 import timeFormatter from '@/utils/timeFormatter'
 import { ElMessage } from 'element-plus'
+
+const router = useRouter()
 
 /**筛选器 */
 let filterForm = reactive({
@@ -143,8 +146,8 @@ const submitPayment = () => {
 
 /**查看订单详情 */
 const viewOrderDetail = (orderId) => {
-  // 跳转到订单详情页面
-  window.open(`#/order/detail/${orderId}`, '_blank')
+  // 跳转到订单详情页面 - 在新窗口中打开
+  router.push({ name: 'order_detail', params: { id: orderId } })
 }
 
 /**实现筛选功能 */
@@ -310,7 +313,7 @@ const paymentFormRules = {
                 <el-icon><Money /></el-icon>
               </div>
               <div class="summary-details">
-                <div class="summary-label">当月总金额</div>
+                <div class="summary-label">当月总销量</div>
                 <div class="summary-value amount">￥{{ totalAmount }}</div>
               </div>
             </div>

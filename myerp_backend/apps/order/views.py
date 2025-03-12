@@ -43,6 +43,7 @@ class CreateOrderView(APIView):
                     pending_balance=validated_data['total_amount'] - validated_data['down_payment'],
                     total_cost=validated_data['total_cost'],
                     gross_profit=validated_data['gross_profit'],
+                    address=validated_data['address'],
                     # 默认值处理
                     received_balance=0,
                     delivery_status=1,  # 新订单

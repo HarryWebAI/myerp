@@ -18,6 +18,7 @@ class OrderCreateSerializer(serializers.Serializer):
     down_payment = serializers.DecimalField(required=True, max_digits=10, decimal_places=2)
     total_cost = serializers.DecimalField(required=True, max_digits=10, decimal_places=2)
     gross_profit = serializers.DecimalField(required=True, max_digits=10, decimal_places=2)
+    address = serializers.CharField(required=True, max_length=200)
     details = serializers.ListField(
         child=serializers.DictField(
             child=serializers.IntegerField(),
@@ -83,7 +84,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = OrderDetail
-        fields = ['id', 'inventory_id', 'quantity', 'inventory_data', 'created_at', 'updated_at']
+        fields = ['id', 'inventory_id', 'quantity', 'inventory_data']
     
     def get_inventory_data(self, obj):
         """获取商品详细信息"""
@@ -105,8 +106,7 @@ class BalancePaymentSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = BalancePayment
-        fields = ['id', 'order', 'amount', 'payment_time', 'operator', 'operator_name', 'created_at', 'updated_at']
-        read_only_fields = ['created_at', 'updated_at']
+        fields = ['id', 'order', 'amount', 'payment_time', 'operator', 'operator_name']
 
 
 class OperationLogSerializer(serializers.ModelSerializer):
@@ -133,7 +133,7 @@ class OrderListSerializer(serializers.ModelSerializer):
             'id', 'order_number', 'brand_name', 'client_name', 'staff_name',
             'sign_time', 'total_amount', 'down_payment', 'pending_balance',
             'total_cost', 'gross_profit', 'delivery_status', 'delivery_status_display',
-            'payment_status', 'payment_status_display'
+            'payment_status', 'payment_status_display', 'address'
         ]
 
 
@@ -146,6 +146,7 @@ class OrderSerializer(serializers.ModelSerializer):
     details = OrderDetailSerializer(many=True, read_only=True)
     delivery_status_display = serializers.CharField(source='get_delivery_status_display', read_only=True)
     payment_status_display = serializers.CharField(source='get_payment_status_display', read_only=True)
+    operation_logs = OperationLogSerializer(many=True, read_only=True)
     
     class Meta:
         model = Order
@@ -155,6 +156,5 @@ class OrderSerializer(serializers.ModelSerializer):
             'received_balance', 'pending_balance', 'delivery_status', 'delivery_status_display',
             'payment_status', 'payment_status_display', 'total_cost', 'installation_time',
             'installer', 'installation_fee', 'transportation_fee', 'gross_profit',
-            'details', 'created_at', 'updated_at'
+            'details', 'operation_logs', 'address'
         ]
-        read_only_fields = ['created_at', 'updated_at']

@@ -49,6 +49,7 @@ class Order(models.Model):
     installation_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='安装费用')
     transportation_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='运输费用')
     gross_profit = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='毛利润')
+    address = models.CharField(max_length=200, verbose_name='安装地址')
     
     class Meta:
         verbose_name = '订单'
