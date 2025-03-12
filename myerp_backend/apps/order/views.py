@@ -295,6 +295,44 @@ class BalancePaymentViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(order_id=order_id)
         return queryset
     
+    def create(self, request, *args, **kwargs):
+        """重写创建方法，添加验证逻辑"""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        # 获取订单和支付金额
+        order_id = serializer.validated_data.get('order').id
+        payment_amount = serializer.validated_data.get('amount')
+        
+        # 验证支付金额不能为0
+        if payment_amount <= 0:
+            return Response(
+                {'detail': '支付金额必须大于0'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # 获取订单信息，验证支付金额不能超过待收尾款
+        try:
+            order = Order.objects.get(id=order_id)
+            pending_balance = order.pending_balance
+            
+            if payment_amount > pending_balance:
+                return Response(
+                    {'detail': f'支付金额(¥{payment_amount})不能超过待收尾款(¥{pending_balance})'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+                
+        except Order.DoesNotExist:
+            return Response(
+                {'detail': '订单不存在'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # 执行原有的创建逻辑
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+    
     def perform_create(self, serializer):
         """创建尾款支付记录"""
         with transaction.atomic():

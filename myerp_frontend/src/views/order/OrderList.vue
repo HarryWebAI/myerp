@@ -111,23 +111,38 @@ watch(
 /**处理尾款支付 */
 const paymentFormVisible = ref(false)
 const paymentFormData = reactive({
-  order_id: 0,
-  amount: 0,
-  payment_method: 'cash',
-  payment_date: new Date().toISOString().split('T')[0],
-  note: ''
+  order: 0,
+  amount: 0
 })
 const paymentForm = ref()
 
+// 保存当前订单的待付尾款
+const currentPendingBalance = ref(0)
+
 // 打开尾款支付表单
 const openPaymentForm = (order) => {
-  paymentFormData.order_id = order.id
-  paymentFormData.amount = order.pending_balance
+  paymentFormData.order = order.id
+  // 将默认金额设置为0，而不是待付尾款
+  paymentFormData.amount = 0
+  // 保存当前订单的待付尾款，用于后续验证
+  currentPendingBalance.value = order.pending_balance
   paymentFormVisible.value = true
 }
 
 // 提交尾款支付
 const submitPayment = () => {
+  // 首先检查金额是否为0
+  if (paymentFormData.amount === 0) {
+    ElMessage.error('支付金额不能为0！')
+    return
+  }
+
+  // 检查金额是否超过待付尾款
+  if (paymentFormData.amount > currentPendingBalance.value) {
+    ElMessage.error(`支付金额不能超过待付尾款(￥${currentPendingBalance.value})！`)
+    return
+  }
+
   paymentForm.value.validate((valid) => {
     if (valid) {
       orderHttp.payBalance(paymentFormData).then((result) => {
@@ -137,8 +152,16 @@ const submitPayment = () => {
           // 重新加载订单列表
           getOrders(pagination.page, filterForm)
         } else {
-          ElMessage.error('尾款支付失败!')
+          // 优化错误提示，显示后端返回的具体错误信息
+          const errorMsg = result.data && result.data.detail ? result.data.detail : '尾款支付失败!'
+          ElMessage.error(errorMsg)
         }
+      }).catch(error => {
+        // 捕获网络错误或后端返回的错误
+        const errorMsg = error.response && error.response.data && error.response.data.detail
+          ? error.response.data.detail
+          : '支付处理出错，请稍后再试!'
+        ElMessage.error(errorMsg)
       })
     }
   })
@@ -174,25 +197,12 @@ const onSearch = (action) => {
   }
 }
 
-// 支付方式选项
-const paymentMethodOptions = [
-  { label: '现金', value: 'cash' },
-  { label: '银行转账', value: 'bank_transfer' },
-  { label: '支付宝', value: 'alipay' },
-  { label: '微信支付', value: 'wechat_pay' }
-]
-
 // 支付表单验证规则
 const paymentFormRules = {
   amount: [
     { required: true, message: '请输入支付金额', trigger: 'blur' },
-    { type: 'number', message: '金额必须为数字', trigger: 'blur' }
-  ],
-  payment_method: [
-    { required: true, message: '请选择支付方式', trigger: 'change' }
-  ],
-  payment_date: [
-    { required: true, message: '请选择支付日期', trigger: 'blur' }
+    { type: 'number', message: '金额必须为数字', trigger: 'blur' },
+    { type: 'number', min: 0.01, message: '金额必须大于0', trigger: 'blur' }
   ]
 }
 </script>
@@ -441,29 +451,26 @@ const paymentFormRules = {
       :rules="paymentFormRules"
       label-width="100px"
     >
-      <el-form-item label="支付金额" prop="amount">
-        <el-input-number v-model.number="paymentFormData.amount" :precision="2" :min="0" style="width: 100%" />
-      </el-form-item>
-      <el-form-item label="支付方式" prop="payment_method">
-        <el-select v-model="paymentFormData.payment_method" style="width: 100%">
-          <el-option
-            v-for="option in paymentMethodOptions"
-            :key="option.value"
-            :label="option.label"
-            :value="option.value"
-          />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="支付日期" prop="payment_date">
-        <el-date-picker
-          v-model="paymentFormData.payment_date"
-          type="date"
-          style="width: 100%"
-          format="YYYY-MM-DD"
+      <div class="payment-info">
+        <el-alert
+          title="注意：付款后无法撤销，请确认金额正确"
+          type="warning"
+          :closable="false"
+          show-icon
         />
-      </el-form-item>
-      <el-form-item label="备注" prop="note">
-        <el-input type="textarea" v-model="paymentFormData.note" :rows="3" />
+      </div>
+      <el-form-item label="支付金额" prop="amount">
+        <el-input-number
+          v-model.number="paymentFormData.amount"
+          :precision="2"
+          :min="0.00"
+          style="width: 100%"
+          placeholder="请输入支付金额"
+        />
+        <div class="form-tip">
+          <p>最大可支付金额: ￥{{ currentPendingBalance }}</p>
+          <p>系统将记录支付操作并自动更新订单状态</p>
+        </div>
       </el-form-item>
     </el-form>
   </FormDialog>
@@ -719,5 +726,16 @@ const paymentFormRules = {
   .summary-dashboard {
     flex-direction: column;
   }
+}
+
+/* 添加表单提示样式 */
+.form-tip {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 5px;
+}
+
+.payment-info {
+  margin-bottom: 20px;
 }
 </style>

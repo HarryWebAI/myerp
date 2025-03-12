@@ -107,6 +107,25 @@ class BalancePaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = BalancePayment
         fields = ['id', 'order', 'amount', 'payment_time', 'operator', 'operator_name']
+        read_only_fields = ['operator', 'payment_time']
+    
+    def validate_amount(self, value):
+        """验证金额必须大于0"""
+        if value <= 0:
+            raise serializers.ValidationError("支付金额必须大于0")
+        return value
+    
+    def validate(self, data):
+        """验证整体数据，确保支付金额不超过订单的待收尾款"""
+        order = data.get('order')
+        amount = data.get('amount')
+        
+        if order and amount and amount > order.pending_balance:
+            raise serializers.ValidationError({
+                'amount': f"支付金额(¥{amount})不能超过待收尾款(¥{order.pending_balance})"
+            })
+        
+        return data
 
 
 class OperationLogSerializer(serializers.ModelSerializer):
