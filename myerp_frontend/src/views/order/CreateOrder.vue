@@ -344,18 +344,40 @@ const submitOrder = () => {
     details: orderForm.details
   };
 
-  console.log(orderData);
-
   orderHttp.createOrder(orderData).then(result => {
     if (result.status === 201) {
       ElMessage.success('订单创建成功！');
-      router.push({ name: 'order_detail', params: { id: result.data.order_number } });
+      // 跳转至订单列表页面
+      router.push({ name: 'order_list' });
     } else {
-      ElMessage.error('订单创建失败！');
+      // 检查是否有详细错误信息
+      if (result.data && result.data.detail) {
+        // 检查是否是重复订单号错误
+        if (result.data.detail.includes('Duplicate entry') && result.data.detail.includes('order_number')) {
+          ElMessage.error('订单创建失败！订单编号已存在，请使用不同的订单编号。');
+        } else {
+          // 显示服务器返回的具体错误
+          ElMessage.error(`订单创建失败！${result.data.detail}`);
+        }
+      } else {
+        ElMessage.error('订单创建失败！');
+      }
     }
   }).catch(error => {
     console.error('订单创建错误:', error);
-    ElMessage.error('订单创建发生错误！');
+    // 检查响应中是否包含详细错误信息
+    if (error.response && error.response.data && error.response.data.detail) {
+      const errorDetail = error.response.data.detail;
+      // 检查是否是重复订单号错误
+      if (errorDetail.includes('Duplicate entry') && errorDetail.includes('order_number')) {
+        ElMessage.error('订单创建失败！订单编号已存在，请使用不同的订单编号。');
+      } else {
+        // 显示服务器返回的具体错误
+        ElMessage.error(`订单创建失败！${errorDetail}`);
+      }
+    } else {
+      ElMessage.error('订单创建发生错误！请检查网络连接或联系管理员。');
+    }
   });
 };
 

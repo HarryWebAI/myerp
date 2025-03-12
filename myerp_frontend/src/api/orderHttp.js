@@ -13,6 +13,34 @@ const createOrder = (data) => {
   return http.post(path, data)
 }
 
+// 获取订单列表（带分页）
+const getOrderList = (page = 1, params = {}) => {
+  const path = `/orders/?page=${page}`
+  return http.get(path, params)
+}
+
+// 获取订单详情
+const getOrderDetail = (orderId) => {
+  const path = `/orders/${orderId}/`
+  return http.get(path)
+}
+
+// 获取订单明细
+const getOrderDetails = (params = {}) => {
+  const path = '/order-details/'
+  return http.get(path, params)
+}
+
+// 处理尾款支付
+const payBalance = (data) => {
+  const path = '/balance-payments/'
+  return http.post(path, data)
+}
+
 export default {
-  createOrder
+  createOrder,
+  getOrderList,
+  getOrderDetail,
+  getOrderDetails,
+  payBalance
 }
