@@ -4,7 +4,7 @@ import { ElMessage } from 'element-plus'
 import inventoryHttp from '@/api/inventoryHttp'
 import timeFormatter from '@/utils/timeFormatter'
 import { useAuthStore } from '@/stores/auth'
-import { Download, Upload, Warning, Document } from '@element-plus/icons-vue'
+import { Download, Upload, Warning, Document, InfoFilled } from '@element-plus/icons-vue'
 import inventoryLog from '@/api/inventoryHttp'
 import { ref, onMounted } from 'vue'
 const authStore = useAuthStore()
@@ -92,13 +92,71 @@ const getLogType = () => {
 </script>
 
 <template>
-  <MainBox title="库存备份">
+  <MainBox title="盘点备份">
     <div class="excel-page-container">
+      <!-- 提示区域 -->
+      <div class="section prep-section">
+        <div class="section-header">
+          <el-icon class="header-icon"><InfoFilled /></el-icon>
+          <h3>第一步：准备工作</h3>
+        </div>
+        <div class="section-content">
+          <div class="prep-steps">
+            <div class="prep-step danger-warning">
+              <div class="step-number"><el-icon><Warning /></el-icon></div>
+              <div class="step-content">
+                <h4>谨慎使用该功能!</h4>
+                <p>该功能主要用于[系统初次投入使用],以及[年度盘库盘点],要求系统在盘点期间停用,并且提交后会对现存记录造成不可逆地修改!</p>
+              </div>
+            </div>
+
+            <div class="prep-step">
+              <div class="step-number">1</div>
+              <div class="step-content">
+                <h4>确保订单全部出库</h4>
+                <p>盘点前，请确保系统内现存订单都已完成出库操作!</p>
+              </div>
+            </div>
+
+            <div class="prep-step">
+              <div class="step-number">2</div>
+              <div class="step-content">
+                <h4>暂停系统一切操作</h4>
+                <p>在盘点期间，请暂停在系统内新增发货, 收货, 订单记录, 确保库存数据稳定!</p>
+              </div>
+            </div>
+
+            <div class="prep-step">
+              <div class="step-number">3</div>
+              <div class="step-content">
+                <h4>明确记录盘点时间</h4>
+                <p>明确记录盘点开始的具体时间，作为数据核对的时间节点, 期间的记录考虑可以用手写笔记记录!</p>
+              </div>
+            </div>
+
+            <div class="prep-step">
+              <div class="step-number">4</div>
+              <div class="step-content">
+                <h4>盘点后再补充记录</h4>
+                <p>请在库存盘点结束后，再在系统中补录盘点期间的发货、收货和订单记录!</p>
+              </div>
+            </div>
+
+
+          </div>
+
+          <div class="prep-notice">
+            <el-icon><Warning /></el-icon>
+            <span>请严格按照以上步骤操作，确保盘点数据的准确性</span>
+          </div>
+        </div>
+      </div>
+
       <!-- 下载区域 -->
       <div class="section download-section">
         <div class="section-header">
           <el-icon class="header-icon"><Download /></el-icon>
-          <h3>第一步：下载当前库存备份</h3>
+          <h3>第二步：下载当前库存备份</h3>
         </div>
         <div class="section-content">
           <div class="warning-box">
@@ -116,7 +174,7 @@ const getLogType = () => {
       <div class="section upload-section">
         <div class="section-header">
           <el-icon class="header-icon"><Upload /></el-icon>
-          <h3>第二步：上传新的库存数据</h3>
+          <h3>第三步：上传新的库存数据</h3>
         </div>
         <div class="section-content">
           <div class="warning-box danger">
@@ -390,5 +448,145 @@ const getLogType = () => {
 }
 :deep(.el-timeline-item:last-child) {
   padding-bottom: 0;
+}
+
+/* 准备工作部分样式 */
+.prep-section .section-content {
+  padding: 5px 15px 15px;
+}
+
+.prep-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.prep-step {
+  display: flex;
+  align-items: flex-start;
+  background-color: var(--el-color-primary-light-9);
+  border-radius: 8px;
+  padding: 16px;
+  transition: all 0.3s;
+}
+
+.prep-step:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  background-color: var(--el-color-primary-light-8);
+}
+
+.step-number {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: var(--el-color-primary);
+  color: white;
+  font-weight: bold;
+  margin-right: 16px;
+  flex-shrink: 0;
+}
+
+.step-content {
+  flex: 1;
+}
+
+.step-content h4 {
+  margin: 0 0 8px 0;
+  color: var(--el-color-primary-dark-2);
+  font-size: 16px;
+}
+
+.step-content p {
+  margin: 0;
+  color: #606266;
+  line-height: 1.5;
+}
+
+.prep-notice {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  background-color: #fdf6ec;
+  border-radius: 4px;
+  border: 1px solid #faecd8;
+}
+
+.prep-notice .el-icon {
+  color: #e6a23c;
+  font-size: 18px;
+  margin-right: 10px;
+}
+
+.prep-notice span {
+  color: #666;
+  font-size: 14px;
+}
+
+/* 响应式调整 */
+@media screen and (max-width: 768px) {
+  .prep-step {
+    padding: 12px;
+  }
+
+  .step-number {
+    width: 28px;
+    height: 28px;
+    margin-right: 12px;
+  }
+
+  .step-content h4 {
+    font-size: 15px;
+  }
+}
+
+/* 危险警告样式 */
+.danger-warning {
+  background-color: var(--el-color-danger-light-9);
+  border: 1px solid var(--el-color-danger);
+  animation: pulse 2s infinite;
+}
+
+.danger-warning:hover {
+  background-color: var(--el-color-danger-light-8);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(245, 108, 108, 0.2);
+}
+
+.danger-warning .step-number {
+  background-color: var(--el-color-danger);
+  width: 34px;
+  height: 34px;
+}
+
+.danger-warning .step-number .el-icon {
+  font-size: 18px;
+}
+
+.danger-warning h4 {
+  color: var(--el-color-danger) !important;
+  font-weight: 700;
+  font-size: 17px !important;
+}
+
+.danger-warning p {
+  color: #f56c6c !important;
+  font-weight: 500;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(245, 108, 108, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(245, 108, 108, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(245, 108, 108, 0);
+  }
 }
 </style>

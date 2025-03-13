@@ -792,7 +792,7 @@ class InventoryUploadView(APIView):
 
                 # 获取当前时间作为盘点时间点
                 current_time = datetime.now()
-                inventory_check_message = f"系统管理员在{current_time.strftime('%Y-%m-%d %H:%M:%S')}进行了库存盘点，此次盘点之前的所有数据已失效!"
+                inventory_check_message = f"{current_time.strftime('%Y-%m-%d %H:%M:%S')}进行了库存盘点，此次盘点之前的所有数据已失效!"
                 
                 # 为所有采购记录添加盘点日志
                 purchases = models.Purchase.objects.filter(create_time__lt=current_time)
