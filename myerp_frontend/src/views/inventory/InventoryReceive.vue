@@ -6,6 +6,7 @@ import { useRouter } from 'vue-router'
 import brandAndCategoryHttp from '@/api/systemHttp'
 import inventoryHttp from '@/api/inventoryHttp'
 import { ElMessage } from 'element-plus'
+import { CirclePlus, Delete } from '@element-plus/icons-vue'
 
 const router = useRouter()
 
@@ -227,124 +228,188 @@ const getDisabledStatus = (inventoryId, rowIndex) => {
 </script>
 
 <template>
-  <MainBox title="申请收货">
-    <div class="table-header">
-      <!-- 锚定收货品牌 -->
-      <div>
-        <el-form inline>
-          <el-form-item label="收货品牌：">
-            <el-select v-model="filterForm.brand_id" style="width: 150px">
-              <el-option :value="0" label="请先选择品牌..." />
-              <el-option
-                v-for="brand in brands"
-                :key="brand.id"
-                :value="brand.id"
-                :label="brand.name"
-              ></el-option>
-            </el-select>
-          </el-form-item>
-          <el-form-item>
-            <el-tooltip
-              content="注意!一次性只能收同一品牌的货!确认后不可更改!"
-              placement="right"
-              effect="light"
-              v-if="!addButtonVisable"
-            >
-              <el-button type="success" @click="confirmBrand">确认品牌, 开始收货</el-button>
-            </el-tooltip>
-          </el-form-item>
-        </el-form>
+  <MainBox title="收货入库">
+    <!-- 顶部卡片区域 -->
+    <el-card class="brand-select-card" shadow="hover">
+      <div class="brand-select-content">
+        <div class="brand-select-left">
+          <el-form :inline="true">
+            <el-form-item label="收货品牌">
+              <el-select
+                v-model="filterForm.brand_id"
+                placeholder="请选择收货品牌"
+                class="brand-select"
+                :disabled="addButtonVisable"
+              >
+                <el-option :value="0" label="请先选择品牌..." />
+                <el-option
+                  v-for="brand in brands"
+                  :key="brand.id"
+                  :value="brand.id"
+                  :label="brand.name"
+                />
+              </el-select>
+            </el-form-item>
+            <el-form-item>
+              <el-tooltip
+                content="注意!一次性只能收同一品牌的货!确认后不可更改!"
+                placement="right"
+                effect="light"
+                v-if="!addButtonVisable"
+              >
+                <el-button type="primary" @click="confirmBrand">
+                  确认品牌，开始收货
+                </el-button>
+              </el-tooltip>
+            </el-form-item>
+          </el-form>
+        </div>
+        <div class="brand-select-right" v-if="addButtonVisable">
+          <el-tooltip content="点击增加一行数据!" placement="left" effect="light">
+            <el-button type="success" @click="addRow" class="add-row-btn">
+              <el-icon><CirclePlus /></el-icon>
+              添加收货商品
+            </el-button>
+          </el-tooltip>
+        </div>
       </div>
+    </el-card>
 
-      <!-- "增加一行"按钮 -->
-      <div>
-        <el-tooltip
-          v-if="addButtonVisable"
-          content="点击增加一行数据!"
-          placement="left"
-          effect="light"
-        >
-          <el-button @click="addRow" type="primary" class="add-row-btn">
-            <el-icon><CirclePlus /></el-icon>
-            <span>点我收货</span>
-          </el-button>
-        </el-tooltip>
-      </div>
-    </div>
+    <!-- 收货明细表格 -->
+    <el-card class="detail-table-card" shadow="hover" v-if="addButtonVisable">
+      <template #header>
+        <div class="card-header">
+          <span class="header-title">收货明细</span>
+          <el-tag type="info" effect="plain">
+            已添加 {{ details.length }} 个商品
+          </el-tag>
+        </div>
+      </template>
 
-    <el-table :data="details" border style="width: 100%">
-      <el-table-column label="序号" width="80" type="index" align="center" />
-
-      <el-table-column label="收货商品">
-        <template #default="{ row, $index }">
-          <el-select
-            v-model="row.inventory_id"
-            @change="(val) => handleSelectChange(row, $index, val)"
-            filterable
-          >
-            <el-option :value="0" label="请选择商品" />
-            <el-option
-              v-for="inventory in inventories"
-              :key="inventory.id"
-              :label="
-                inventory.category.name + '-' + inventory.full_name + ', 在途: ' + inventory.on_road
-              "
-              :value="inventory.id"
-              :disabled="getDisabledStatus(inventory.id, $index)"
-            />
-          </el-select>
-        </template>
-      </el-table-column>
-
-      <el-table-column label="收货数量" width="120">
-        <template #default="{ row }">
-          <el-input v-model.number="row.quantity" type="number" />
-        </template>
-      </el-table-column>
-
-      <el-table-column label="操作" width="160" align="center">
-        <template #default="{ $index }">
-          <el-button type="danger" @click="deleteRow($index)"> - </el-button>
-        </template>
-      </el-table-column>
-    </el-table>
-
-    <div class="submit-btn">
-      <el-button type="success" size="large" @click="onReceive" v-if="addButtonVisable"
-        >点击收货</el-button
+      <el-table
+        :data="details"
+        border
+        stripe
+        style="width: 100%"
+        :header-cell-style="{ background: '#f5f7fa' }"
       >
-    </div>
+        <el-table-column label="序号" width="80" type="index" align="center" />
+
+        <el-table-column label="收货商品" min-width="300">
+          <template #default="{ row, $index }">
+            <el-select
+              v-model="row.inventory_id"
+              @change="(val) => handleSelectChange(row, $index, val)"
+              filterable
+              placeholder="请选择商品"
+              class="product-select"
+            >
+              <el-option :value="0" label="请选择商品" />
+              <el-option
+                v-for="inventory in inventories"
+                :key="inventory.id"
+                :label="
+                  inventory.category.name + '-' + inventory.full_name + ', 在途: ' + inventory.on_road
+                "
+                :value="inventory.id"
+                :disabled="getDisabledStatus(inventory.id, $index)"
+              >
+                <div class="product-option">
+                  <span class="product-category">{{ inventory.category.name }}</span>
+                  <span class="product-name">{{ inventory.full_name }}</span>
+                  <span class="product-on-road">在途: {{ inventory.on_road }}</span>
+                </div>
+              </el-option>
+            </el-select>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="收货数量" width="200" align="center">
+          <template #default="{ row }">
+            <el-input-number
+              v-model="row.quantity"
+              :min="1"
+              controls-position="right"
+              class="quantity-input"
+            />
+          </template>
+        </el-table-column>
+
+        <el-table-column label="操作" width="120" align="center" fixed="right">
+          <template #default="{ $index }">
+            <el-button
+              type="danger"
+              circle
+              :icon="Delete"
+              @click="deleteRow($index)"
+            />
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <!-- 提交按钮 -->
+      <div class="submit-area">
+        <el-button
+          type="primary"
+          size="large"
+          @click="onReceive"
+          :disabled="details.length === 0"
+        >
+          确认收货
+        </el-button>
+      </div>
+    </el-card>
   </MainBox>
 
-  <!-- 确认收货表单 -->
-  <FormDialog title="确认收货?" v-model="confirmDialog" @submit="confirmReceive" width="800">
-    <el-form :model="receiveData" label-width="80">
+  <!-- 确认收货对话框 -->
+  <FormDialog
+    title="确认收货"
+    v-model="confirmDialog"
+    @submit="confirmReceive"
+    width="800px"
+  >
+    <el-form :model="receiveData" label-width="100px" class="confirm-form">
       <el-form-item label="收货品牌">
-        <el-select v-model="receiveData.brand_id" disabled>
+        <el-select v-model="receiveData.brand_id" disabled class="form-select">
           <el-option
             v-for="brand in brands"
             :key="brand.id"
             :value="brand.id"
             :label="brand.name"
-          ></el-option>
+          />
         </el-select>
       </el-form-item>
       <el-form-item label="收货详情">
-        <div class="warning-info">
-          <h3>注意!</h3>
-          <p><small>请仔细核对收货信息,[确认]后不可更改!</small></p>
-          <p><small>如有错误请[返回]修改!</small></p>
-        </div>
-        <el-table :data="receiveDataDetails">
-          <el-table-column prop="full_name" label="名称" />
-          <el-table-column label="种类" width="100" align="center">
-            <template #default="scope">
-              {{ scope.row.category.name }}
+        <div class="warning-box">
+          <el-alert
+            title="请仔细核对收货信息，确认后不可更改！"
+            type="warning"
+            :closable="false"
+            show-icon
+          >
+            <template #default>
+              如有错误请返回修改
             </template>
-          </el-table-column>
-          <el-table-column label="数量" align="right">
+          </el-alert>
+        </div>
+        <el-table
+          :data="receiveDataDetails"
+          border
+          stripe
+          :header-cell-style="{ background: '#f5f7fa' }"
+        >
+          <el-table-column prop="full_name" label="商品名称" min-width="200" />
+          <el-table-column prop="category.name" label="商品分类" width="120" align="center" />
+          <el-table-column label="收货数量" width="200" align="right">
             <template #default="scope">
-              <span> 当前在途: {{ scope.row.on_road }} / 本次收货: {{ scope.row.quantity }} </span>
+              <div class="quantity-cell">
+                <span class="quantity-detail">
+                  在途: {{ scope.row.on_road }}
+                </span>
+                <span class="quantity-total">
+                  收货: {{ scope.row.quantity }}
+                </span>
+              </div>
             </template>
           </el-table-column>
         </el-table>
@@ -354,31 +419,117 @@ const getDisabledStatus = (inventoryId, rowIndex) => {
 </template>
 
 <style scoped>
-.table-header {
+.brand-select-card {
+  margin-bottom: 20px;
+}
+
+.brand-select-content {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+}
+
+.brand-select {
+  width: 200px;
+}
+
+.detail-table-card {
+  margin-bottom: 20px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-title {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.product-select {
+  width: 100%;
+}
+
+.product-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.product-category {
+  color: #409EFF;
+  font-weight: 500;
+}
+
+.product-name {
+  flex: 1;
+}
+
+.product-on-road {
+  color: #F56C6C;
+  font-weight: 500;
+}
+
+.quantity-input {
+  width: 130px;
+}
+
+.submit-area {
+  margin-top: 20px;
+  text-align: center;
+}
+
+.confirm-form {
+  padding: 20px;
+}
+
+.form-select {
+  width: 100%;
+}
+
+.warning-box {
+  margin-bottom: 15px;
+}
+
+.quantity-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.quantity-detail {
+  color: #606266;
+  font-size: 13px;
+}
+
+.quantity-total {
+  color: #F56C6C;
+  font-weight: 500;
 }
 
 .add-row-btn {
   width: 160px;
 }
 
-.option-container {
-  text-align: center;
+:deep(.el-card__header) {
+  padding: 15px 20px;
+  border-bottom: 1px solid #EBEEF5;
 }
 
-.submit-btn {
-  text-align: center;
-  margin-top: 10px;
+:deep(.el-form--inline .el-form-item) {
+  margin-right: 20px;
 }
 
-.warning-info {
-  width: 100%;
-  text-align: center;
-  color: red;
-  font-weight: bold;
+:deep(.el-input-number .el-input__wrapper) {
+  padding-left: 11px;
+  padding-right: 11px;
 }
 
+:deep(.el-select-dropdown__item) {
+  padding: 0 15px;
+}
 </style>
 
 <style>

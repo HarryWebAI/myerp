@@ -6,6 +6,9 @@ import { onMounted, reactive, ref, watch } from 'vue'
 import brandAndCategoryHttp from '@/api/systemHttp'
 import { ElMessage } from 'element-plus'
 import inventoryHttp from '@/api/inventoryHttp'
+import { useAuthStore } from '@/stores/auth'
+
+const authStore = useAuthStore()
 
 /**筛选器 */
 let filterForm = reactive({
@@ -265,7 +268,7 @@ const onSearch = (action) => {
                   <el-button @click="onSearch(false)" round icon="close" type="info" />
                 </el-tooltip>
               </el-form-item>
-              <el-form-item>
+              <el-form-item v-if="authStore.canViewCost">
                 <el-tooltip content="当前库存总成本" placement="bottom" effect="light">
                   <span style="color: red">￥{{ total_cost }}</span>
                 </el-tooltip>
@@ -316,13 +319,13 @@ const onSearch = (action) => {
             </el-tooltip>
           </template>
         </el-table-column>
-        <el-table-column label="单个进价" width="130">
+        <el-table-column label="单个进价" width="130" v-if="authStore.canViewCost">
           <template #default="scope">
             <span>￥</span>
             <span>{{ scope.row.cost }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="库存成本" width="120">
+        <el-table-column label="库存成本" width="120" v-if="authStore.canViewCost">
           <template #default="scope">
             <span>￥</span>
             <span>{{ scope.row.total_cost }}</span>
@@ -386,7 +389,7 @@ const onSearch = (action) => {
       <el-form-item label="商品颜色" prop="color">
         <el-input type="text" v-model="createInventoryFormData.color" />
       </el-form-item>
-      <el-form-item label="￥ 进价" prop="cost">
+      <el-form-item label="￥ 进价" prop="cost" v-if="authStore.canViewCost">
         <el-input type="number" v-model.number="createInventoryFormData.cost" />
       </el-form-item>
     </el-form>
@@ -431,7 +434,7 @@ const onSearch = (action) => {
       <el-form-item label="商品颜色" prop="color">
         <el-input type="text" v-model="updateInventoryFormData.color" />
       </el-form-item>
-      <el-form-item label="￥ 进价" prop="cost">
+      <el-form-item label="￥ 进价" prop="cost" v-if="authStore.canViewCost">
         <el-input type="number" v-model.number="updateInventoryFormData.cost" />
       </el-form-item>
     </el-form>

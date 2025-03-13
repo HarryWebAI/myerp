@@ -1,18 +1,23 @@
 <script setup>
 import MainBox from '@/components/MainBox.vue'
-import { onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import orderHttp from '@/api/orderHttp'
 import timeFormatter from '@/utils/timeFormatter'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import FormDialog from '@/components/FormDialog.vue'
 import installerHttp from '@/api/installerHttp'
+import dayjs from 'dayjs'
+import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
 const router = useRouter()
+const authStore = useAuthStore()
+
 const orderId = route.params.id
-const order = ref(null)
+const order = ref({})
 const installers = ref([])
+const loading = ref(true)
 
 onMounted(() => {
   // 获取订单详情
@@ -153,10 +158,10 @@ const handleAbandonOrder = () => {
             ￥{{ order.pending_balance }}
           </span>
         </el-descriptions-item>
-        <el-descriptions-item label="总成本">
+        <el-descriptions-item label="总成本" v-if="authStore.canViewCost">
           <span>￥{{ order.total_cost }}</span>
         </el-descriptions-item>
-        <el-descriptions-item label="毛利润">
+        <el-descriptions-item label="毛利润" v-if="authStore.canViewCost">
           <span :class="['table-profit', { 'positive-profit': order.gross_profit > 0, 'negative-profit': order.gross_profit < 0 }]">
             ￥{{ order.gross_profit }}
           </span>
@@ -179,12 +184,12 @@ const handleAbandonOrder = () => {
             </template>
           </el-table-column>
           <el-table-column prop="quantity" label="数量" width="80" align="center" />
-          <el-table-column label="单价" width="120">
+          <el-table-column label="单价" width="120" v-if="authStore.canViewCost">
             <template #default="scope">
               <span>￥{{ scope.row.inventory_data?.cost || '0' }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="金额" width="120">
+          <el-table-column label="金额" width="120" v-if="authStore.canViewCost">
             <template #default="scope">
               <span>￥{{ (scope.row.inventory_data?.cost || 0) * scope.row.quantity }}</span>
             </template>
@@ -204,14 +209,20 @@ const handleAbandonOrder = () => {
       </div>
       <div class="install-section" v-else>
         <div>
-          <p :class="['install-note', order.gross_profit >= 0 ? 'install-note-success' : 'install-note-danger']">
-            订单已出库，本单{{ order.gross_profit >= 0 ? '盈利' : '亏损' }}
-          </p>
-        </div>
-        <div>
-          <el-tag :type="order.gross_profit >= 0 ? 'success' : 'danger'">
-            ￥ {{ order.gross_profit }}
-          </el-tag>
+          <template v-if="order.status === 'DELIVERED'">
+            <p class="install-note install-note-success">订单已出库</p>
+          </template>
+          <template v-if="order.status === 'INSTALLED' && authStore.canViewCost">
+            <p :class="['install-note', order.gross_profit >= 0 ? 'install-note-success' : 'install-note-danger']">
+              订单已出库，本单{{ order.gross_profit >= 0 ? '盈利' : '亏损' }}
+              <el-tag :type="order.gross_profit >= 0 ? 'success' : 'danger'">
+                ￥ {{ order.gross_profit }}
+              </el-tag>
+            </p>
+          </template>
+          <template v-if="order.status === 'INSTALLED' && !authStore.canViewCost">
+            <p class="install-note install-note-success">订单已安装完成</p>
+          </template>
         </div>
       </div>
 

@@ -1,7 +1,7 @@
 <script setup>
 import MainBox from '@/components/MainBox.vue';
 import FormDialog from '@/components/FormDialog.vue';
-import { ref, reactive, onMounted, computed } from 'vue';
+import { ref, reactive, onMounted, computed, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { useRouter } from 'vue-router';
 import orderHttp from '@/api/orderHttp';
@@ -11,8 +11,10 @@ import brandAndCategoryHttp from '@/api/systemHttp';
 import inventoryHttp from '@/api/inventoryHttp';
 import { Plus } from '@element-plus/icons-vue';
 import { chineseNameRegExp, telphoneRegExp } from '@/utils/regExp';
+import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
+const authStore = useAuthStore();
 
 // 表单数据
 const orderForm = reactive({
@@ -797,13 +799,21 @@ const createClient = () => {
           </template>
         </el-table-column>
 
-        <el-table-column label="小计" width="150">
-          <template #default="{ row }">
-            <span v-if="row.inventory_id">
-              ¥{{
-                (inventories.find(i => i.id === row.inventory_id)?.cost || 0) * row.quantity
-              }}
-            </span>
+        <el-table-column prop="quantity" label="数量" width="100" align="center">
+          <template #default="scope">
+            {{ scope.row.quantity }}
+          </template>
+        </el-table-column>
+
+        <el-table-column label="单价" width="100" align="right" v-if="authStore.canViewCost">
+          <template #default="scope">
+            ¥{{ scope.row.cost }}
+          </template>
+        </el-table-column>
+
+        <el-table-column label="小计" width="120" align="right" v-if="authStore.canViewCost">
+          <template #default="scope">
+            ¥{{ scope.row.subtotal }}
           </template>
         </el-table-column>
 
@@ -822,7 +832,7 @@ const createClient = () => {
       </el-table>
 
       <!-- 成本和毛利润计算区域 -->
-      <el-row :gutter="20" class="cost-profit-section">
+      <el-row :gutter="20" class="cost-profit-section" v-if="authStore.canViewCost">
         <el-col :span="12">
             <el-form-item label="成本总价">
               <el-tooltip content="选择客户订购的商品后, 系统将自动计算成本总价! 如有出入, 请手动修改!" placement="top" effect="light">
@@ -879,10 +889,11 @@ const createClient = () => {
       <el-descriptions-item label="签单人员">
         {{ staffs.find(s => s.uid === orderForm.staff_id)?.name || '' }}
       </el-descriptions-item>
-      <el-descriptions-item label="订单总额">¥{{ orderForm.total_amount }}</el-descriptions-item>
-      <el-descriptions-item label="首付定金">¥{{ orderForm.down_payment }}</el-descriptions-item>
-      <el-descriptions-item label="成本总价">¥{{ orderForm.total_cost }}</el-descriptions-item>
-      <el-descriptions-item label="初步毛利">
+      <el-descriptions-item label="总额">¥{{ orderForm.total_amount }}</el-descriptions-item>
+      <el-descriptions-item label="订金">¥{{ orderForm.down_payment }}</el-descriptions-item>
+      <el-descriptions-item label="待付尾款">¥{{ orderForm.pending_balance }}</el-descriptions-item>
+      <el-descriptions-item label="成本总价" v-if="authStore.canViewCost">¥{{ orderForm.total_cost }}</el-descriptions-item>
+      <el-descriptions-item label="初步毛利" v-if="authStore.canViewCost">
         <el-tag
           :type="
             orderForm.gross_profit < 0 ? 'danger' :
@@ -893,16 +904,6 @@ const createClient = () => {
         >
           ¥{{ Number(orderForm.gross_profit).toFixed(2) }}
         </el-tag>
-      </el-descriptions-item>
-      <el-descriptions-item label="待收尾款">
-        <span
-          :class="{
-            'text-danger': orderForm.pending_balance > 3000,
-            'text-strikethrough': orderForm.pending_balance < 0
-          }"
-        >
-          ¥{{ orderForm.pending_balance }}
-        </span>
       </el-descriptions-item>
       <el-descriptions-item label="安装地址" :span="3">{{ orderForm.address }}</el-descriptions-item>
       <el-descriptions-item label="备注" :span="6">{{ orderForm.remark }}</el-descriptions-item>
@@ -915,21 +916,17 @@ const createClient = () => {
 
     <h4>订单商品详情</h4>
     <el-table :data="orderPreviewDetails" border>
-      <el-table-column prop="full_name" label="商品名称" />
-      <el-table-column label="商品分类" width="100" align="center">
-        <template #default="scope">
-          {{ scope.row.category.name }}
-        </template>
-      </el-table-column>
-      <el-table-column label="单价" width="100" align="right">
+      <el-table-column label="商品名称" prop="full_name" min-width="150"></el-table-column>
+      <el-table-column label="数量" prop="quantity" width="80" align="center"></el-table-column>
+      <el-table-column label="单价" width="100" align="right" v-if="authStore.canViewCost">
         <template #default="scope">
           ¥{{ scope.row.cost }}
         </template>
       </el-table-column>
-      <el-table-column prop="quantity" label="数量" width="80" align="center" />
-      <el-table-column label="小计" width="120" align="right">
+      <el-table-column label="金额" width="120" align="right">
         <template #default="scope">
-          ¥{{ scope.row.subtotal }}
+          <span v-if="authStore.canViewCost">¥{{ scope.row.cost * scope.row.quantity }}</span>
+          <span v-else>***</span>
         </template>
       </el-table-column>
     </el-table>

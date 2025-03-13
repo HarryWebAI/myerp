@@ -41,7 +41,7 @@ class StaffSerializer(serializers.ModelSerializer):
     """
     class Meta:
         model = ERPUser
-        fields = ['uid', 'account', 'name', 'telephone', 'is_active', 'is_manager', 'is_storekeeper']
+        fields = ['uid', 'account', 'name', 'telephone', 'is_active', 'is_boss', 'is_manager', 'is_storekeeper']
         read_only_fields = ['uid']
 
     def validate_account(self, value):

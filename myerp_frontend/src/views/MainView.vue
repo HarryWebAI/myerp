@@ -110,7 +110,8 @@ const resetPassword = () => {
         <span>客户管理</span>
       </el-menu-item>
 
-      <el-sub-menu index="3">
+      <!-- 系统管理菜单 - 只对老板和门店经理显示 -->
+      <el-sub-menu index="3" v-if="authStore.hasPermission('system_management')">
         <template #title>
           <el-icon>
             <el-icon><Tools /></el-icon>
@@ -123,7 +124,8 @@ const resetPassword = () => {
           </el-icon>
           <span>品牌种类</span>
         </el-menu-item>
-        <el-menu-item index="3-2" :route="{ name: 'staff' }">
+        <!-- 员工管理只对老板显示 -->
+        <el-menu-item index="3-2" :route="{ name: 'staff' }" v-if="authStore.hasPermission('staff_management')">
           <el-icon><Avatar /></el-icon>
           <span>销售人员</span>
         </el-menu-item>
@@ -133,44 +135,48 @@ const resetPassword = () => {
         </el-menu-item>
       </el-sub-menu>
 
-      <el-sub-menu index="4">
+      <!-- 库存管理菜单 -->
+      <el-sub-menu index="4" v-if="authStore.isBoss || authStore.isStorekeeper">
         <template #title>
           <el-icon>
             <Grid />
           </el-icon>
           <span>库存管理</span>
         </template>
-        <el-menu-item index="4-1" :route="{ name: 'inventory_purchase' }">
+        <!-- 只对老板显示的菜单项 -->
+        <el-menu-item index="4-1" :route="{ name: 'inventory_purchase' }" v-if="authStore.hasPermission('inventory_all')">
           <el-icon>
             <ShoppingCart />
           </el-icon>
           <span>申请发货</span>
         </el-menu-item>
-        <el-menu-item index="4-2" :route="{ name: 'inventory_purchase_list' }">
+        <el-menu-item index="4-2" :route="{ name: 'inventory_purchase_list' }" v-if="authStore.hasPermission('inventory_all')">
           <el-icon>
             <List />
           </el-icon>
           <span>发货记录</span>
         </el-menu-item>
-        <el-menu-item index="4-3" :route="{ name: 'inventory_receive' }">
+        <!-- 对老板和仓库管理员都显示的菜单项 -->
+        <el-menu-item index="4-3" :route="{ name: 'inventory_receive' }" v-if="authStore.hasPermission('inventory_receive')">
           <el-icon>
             <ShoppingCartFull />
           </el-icon>
           <span>收货入库</span>
         </el-menu-item>
-        <el-menu-item index="4-4" :route="{ name: 'inventory_receive_list' }">
+        <el-menu-item index="4-4" :route="{ name: 'inventory_receive_list' }" v-if="authStore.hasPermission('inventory_receive')">
           <el-icon>
             <Checked />
           </el-icon>
           <span>收货记录</span>
         </el-menu-item>
-        <el-menu-item index="4-5" :route="{ name: 'inventory_list' }">
+        <!-- 只对老板显示的菜单项 -->
+        <el-menu-item index="4-5" :route="{ name: 'inventory_list' }" v-if="authStore.hasPermission('inventory_all')">
           <el-icon>
             <Tickets />
           </el-icon>
           <span>库存列表</span>
         </el-menu-item>
-        <el-menu-item index="4-6" :route="{ name: 'inventory_excel' }">
+        <el-menu-item index="4-6" :route="{ name: 'inventory_excel' }" v-if="authStore.hasPermission('inventory_all')">
           <el-icon>
             <DCaret />
           </el-icon>
@@ -178,7 +184,8 @@ const resetPassword = () => {
         </el-menu-item>
       </el-sub-menu>
 
-      <el-sub-menu index="5">
+      <!-- 订单管理菜单 - 只对老板和门店经理显示 -->
+      <el-sub-menu index="5" v-if="authStore.hasPermission('order_management')">
         <template #title>
           <el-icon><Document /></el-icon>
           <span>订单管理</span>

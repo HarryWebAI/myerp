@@ -7,8 +7,10 @@ import inventoryHttp from '@/api/inventoryHttp'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import { Check, Plus, Delete, DocumentAdd } from '@element-plus/icons-vue'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 /** 获取数据 */
 let brands = ref([])
@@ -356,14 +358,14 @@ const getDisabledStatus = (inventoryId, rowIndex) => {
               <el-option
                 v-for="inventory in inventories"
                 :key="inventory.id"
-                :label="inventory.category.name + '-' + inventory.full_name + ', ￥' + inventory.cost"
+                :label="inventory.category.name + '-' + inventory.full_name + (authStore.canViewCost ? ', ￥' + inventory.cost : '')"
                 :value="inventory.id"
                 :disabled="getDisabledStatus(inventory.id, $index)"
               >
                 <div class="product-option">
                   <span class="product-category">{{ inventory.category.name }}</span>
                   <span class="product-name">{{ inventory.full_name }}</span>
-                  <span class="product-cost">￥{{ inventory.cost }}</span>
+                  <span class="product-cost" v-if="authStore.canViewCost">￥{{ inventory.cost }}</span>
                 </div>
               </el-option>
             </el-select>
@@ -459,7 +461,7 @@ const getDisabledStatus = (inventoryId, rowIndex) => {
         <el-form-item label="商品颜色" prop="color">
           <el-input v-model="createInventoryFormData.color" />
         </el-form-item>
-        <el-form-item label="￥ 进价" prop="cost">
+        <el-form-item label="￥ 进价" prop="cost" v-if="authStore.canViewCost">
           <el-input-number
             v-model="createInventoryFormData.cost"
             :precision="2"
@@ -489,7 +491,7 @@ const getDisabledStatus = (inventoryId, rowIndex) => {
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="发货成本">
+        <el-form-item label="发货成本" v-if="authStore.canViewCost">
           <el-input-number
             v-model="purchaseData.total_cost"
             :precision="2"
@@ -522,7 +524,7 @@ const getDisabledStatus = (inventoryId, rowIndex) => {
           >
             <el-table-column prop="full_name" label="商品名称" min-width="200" />
             <el-table-column prop="category.name" label="商品分类" width="120" align="center" />
-            <el-table-column label="发货金额" width="200" align="right">
+            <el-table-column label="发货金额" width="200" align="right" v-if="authStore.canViewCost">
               <template #default="scope">
                 <div class="price-cell">
                   <span class="price-detail">
@@ -532,6 +534,11 @@ const getDisabledStatus = (inventoryId, rowIndex) => {
                     ￥{{ scope.row.cost * scope.row.quantity }}
                   </span>
                 </div>
+              </template>
+            </el-table-column>
+            <el-table-column label="发货数量" width="100" align="center" v-if="!authStore.canViewCost">
+              <template #default="scope">
+                {{ scope.row.quantity }}
               </template>
             </el-table-column>
           </el-table>

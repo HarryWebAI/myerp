@@ -17,7 +17,7 @@ onMounted(async () => {
   Promise.all([
     getInventoryByBrand(),
     getStaffPerformance(),
-    getCurrentYearMonthlySales()
+  getCurrentYearMonthlySales()
   ]).then(() => {
     loading.value = false
     nextTick(() => {
@@ -169,8 +169,8 @@ const updateSalesChart = () => {
         bottom: '3%',
         containLabel: true
       },
-      xAxis: {
-        type: 'category',
+  xAxis: {
+    type: 'category',
         data: months.map(month => `${month}月`),
         axisLabel: {
           interval: 0
@@ -180,8 +180,8 @@ const updateSalesChart = () => {
             color: '#c0c4cc'
           }
         }
-      },
-      yAxis: {
+  },
+  yAxis: {
         type: 'value',
         name: '销售额(元)',
         nameTextStyle: {
@@ -196,11 +196,11 @@ const updateSalesChart = () => {
             color: '#ebeef5'
           }
         }
-      },
-      series: [
-        {
+  },
+  series: [
+    {
           data: values,
-          type: 'line',
+      type: 'line',
           name: '销售额',
           smooth: true,
           symbol: 'circle',

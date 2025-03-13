@@ -4,9 +4,11 @@ import { useRoute, useRouter } from 'vue-router'
 import inventoryHttp from '@/api/inventoryHttp'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Refresh, Document, Timer } from '@element-plus/icons-vue'
+import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
 const router = useRouter()
+const authStore = useAuthStore()
 const receive_id = route.params.id
 const receiveData = ref(null)
 const loading = ref(false)
@@ -184,12 +186,12 @@ onMounted(() => {
               <span class="quantity">{{ scope.row.quantity }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="单价" width="120" align="right">
+          <el-table-column label="单价" width="120" align="right" v-if="authStore.canViewCost">
             <template #default="scope">
               <span class="price">{{ formatPrice(scope.row.inventory.cost) }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="小计" width="120" align="right">
+          <el-table-column label="小计" width="120" align="right" v-if="authStore.canViewCost">
             <template #default="scope">
               <span class="total-price">{{ formatPrice(scope.row.inventory.cost * scope.row.quantity) }}</span>
             </template>
@@ -244,7 +246,7 @@ onMounted(() => {
             </div>
           </div>
         </el-form-item>
-        <el-form-item label="单价">
+        <el-form-item label="单价" v-if="authStore.canViewCost">
           <span class="price">{{ formatPrice(currentDetail.inventory.cost) }}</span>
         </el-form-item>
         <el-form-item label="原数量">
@@ -259,7 +261,7 @@ onMounted(() => {
             controls-position="right"
           />
         </el-form-item>
-        <el-form-item label="变更后小计">
+        <el-form-item label="变更后小计" v-if="authStore.canViewCost">
           <span class="total-price">{{ formatPrice(currentDetail.quantity * currentDetail.inventory.cost) }}</span>
         </el-form-item>
       </el-form>

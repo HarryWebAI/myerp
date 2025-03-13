@@ -65,7 +65,7 @@ class StaffListView(APIView):
             )
         
         # 获取所有员工
-        staff_list = ERPUser.objects.filter(is_active=True)
+        staff_list = ERPUser.objects.filter(is_active=True).order_by('-is_boss', '-is_manager', '-is_storekeeper').all()
         serializer = serializers.StaffSerializer(staff_list, many=True)
         
         return Response(serializer.data, status=status.HTTP_200_OK)

@@ -10,8 +10,10 @@ import orderHttp from '@/api/orderHttp'
 import staffHttp from '@/api/staffHttp'
 import timeFormatter from '@/utils/timeFormatter'
 import { ElMessage } from 'element-plus'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 /**筛选器 */
 let filterForm = reactive({
@@ -221,7 +223,7 @@ const paymentFormRules = {
                 <span class="summary-value amount">￥{{ totalAmount }}</span>
               </div>
             </div>
-            <div class="summary-item">
+            <div class="summary-item" v-if="authStore.canViewCost">
               <el-icon class="summary-icon total-profit"><TrendCharts /></el-icon>
               <div class="summary-content">
                 <span class="summary-label">当月总利润</span>
