@@ -127,7 +127,7 @@ const resetPassword = () => {
         <!-- 员工管理只对老板显示 -->
         <el-menu-item index="3-2" :route="{ name: 'staff' }" v-if="authStore.hasPermission('staff_management')">
           <el-icon><Avatar /></el-icon>
-          <span>销售人员</span>
+          <span>员工管理</span>
         </el-menu-item>
         <el-menu-item index="3-3" :route="{ name: 'installer' }">
           <el-icon><Van /></el-icon>

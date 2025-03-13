@@ -223,7 +223,7 @@ const openAddform = (form) => {
                   </el-tooltip>
                 </div>
                 <div>
-                  <el-tooltip content="删除" placement="top" effect="light">
+                  <el-tooltip content="禁止删除" placement="top" effect="light">
                     <el-button type="danger" @click="onDelete('brand', scope.row.id)" disabled>
                       <el-icon><Delete /></el-icon>
                     </el-button>
@@ -260,7 +260,7 @@ const openAddform = (form) => {
                   </el-tooltip>
                 </div>
                 <div>
-                  <el-tooltip content="删除" placement="top" effect="light">
+                  <el-tooltip content="禁止删除" placement="top" effect="light">
                     <el-button type="danger" @click="onDelete('category', scope.row.id)" disabled>
                       <el-icon><Delete /></el-icon>
                     </el-button>

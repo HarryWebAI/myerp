@@ -12,6 +12,7 @@ import os  # 添加os模块用于文件扩展名验证
 from rest_framework.parsers import MultiPartParser  # 添加文件上传解析器
 from apps.order.models import OperationLog
 from django.db.models import Prefetch
+from apps.staff.permissions import IsStorekeeper,IsBoss
 
 class InventoryViewSet(viewsets.GenericViewSet,
                        viewsets.mixins.CreateModelMixin,
@@ -24,7 +25,7 @@ class InventoryViewSet(viewsets.GenericViewSet,
 
     queryset = models.Inventory.objects.order_by('-id').all()
     serializer_class = serializers.InventorySerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsBoss]
     pagination_class = paginations.InventoryPagination
 
     def get_queryset(self):
@@ -80,7 +81,7 @@ class AllInventoryViewSet(viewsets.GenericViewSet,
 
     queryset = models.Inventory.objects.order_by('-id').all()
     serializer_class = serializers.InventorySerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsBoss|IsStorekeeper]
 
     def get_queryset(self):
         queryset = self.queryset
@@ -98,7 +99,7 @@ class PurchaseView(APIView):
     """
     发货接口
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsBoss]
 
     def post(self, request):
         serializer = serializers.PurchaseSerializer(data=request.data)
@@ -157,7 +158,7 @@ class PurchaseList(APIView):
     """
     发货列表（支持分页查询）
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsBoss]
     pagination_class = paginations.PurchasePagination
 
     def get_queryset(self):
@@ -183,6 +184,7 @@ class PurchaseDetailView(APIView):
     """
     发货详情
     """
+    permission_classes = [IsAuthenticated,IsBoss]
     def get(self, request, id):
         try:
             # 添加类型校验
@@ -215,7 +217,7 @@ class ReceiveView(APIView):
     """
     入库接口
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsBoss|IsStorekeeper]
 
     def post(self, request):
         serializer = serializers.ReceiveSerializer(data=request.data)
@@ -273,7 +275,7 @@ class ReceiveList(APIView):
     """
     收货列表（支持分页查询）
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsBoss|IsStorekeeper]
     pagination_class = paginations.PurchasePagination  # 可以复用或创建专用的分页器
 
     def get_queryset(self):
@@ -299,6 +301,7 @@ class ReceiveDetailView(APIView):
     """
     收货详情
     """
+    permission_classes = [IsAuthenticated,IsBoss|IsStorekeeper]
     def get(self, request, id):
         try:
             # 添加类型校验
@@ -331,7 +334,7 @@ class PurchaseDetailUpdateView(APIView):
     """
     采购明细修正接口
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsBoss]
 
     @transaction.atomic
     def put(self, request, id):
@@ -418,7 +421,7 @@ class ReceiveDetailUpdateView(APIView):
     """
     收货明细修正接口
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsBoss|IsStorekeeper]
 
     @transaction.atomic
     def put(self, request, id):
@@ -492,7 +495,7 @@ class PurchaseDetailDeleteView(APIView):
     """
     删除采购明细接口
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsBoss]
 
     @transaction.atomic
     def delete(self, request, id):
@@ -563,7 +566,7 @@ class ReceiveDetailDeleteView(APIView):
     """
     删除收货明细接口
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsBoss]
 
     @transaction.atomic
     def delete(self, request, id):
@@ -619,8 +622,7 @@ class InventoryDownloadView(APIView):
     """
     库存数据下载接口
     """
-    # permission_classes = [IsAuthenticated]
-    
+    permission_classes = [IsAuthenticated,IsBoss]
     def get(self, request):
         # 获取所有库存数据
         queryset = models.Inventory.objects.order_by('-brand__id', '-category__id', '-id').all()
@@ -664,7 +666,7 @@ class InventoryUploadView(APIView):
     """
     库存数据上传接口
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsBoss]
     parser_classes = [MultiPartParser]  # 添加文件上传解析器
     
     def post(self, request):
@@ -834,7 +836,7 @@ class InventoryLogView(APIView):
     """
     库存日志接口
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsBoss]
     
     def get(self, request):
         # 获取所有库存日志

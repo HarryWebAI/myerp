@@ -280,7 +280,7 @@ const viewDetail = (staff) => {
                   <el-icon><Edit /></el-icon>
                 </el-button>
               </el-tooltip>
-              <el-tooltip content="删除功能已禁用" placement="top" effect="light">
+              <el-tooltip content="禁止删除" placement="top" effect="light">
                 <el-button type="danger" disabled @click="onDelete(scope.row.uid)">
                   <el-icon><Delete /></el-icon>
                 </el-button>

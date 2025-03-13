@@ -8,7 +8,7 @@ from django.db.models import F, Q, Sum, Count
 from django.db.models.functions import TruncMonth
 from decimal import Decimal
 import datetime
-
+from apps.staff.permissions import IsBoss,IsManager
 from . import serializers
 from . import paginations
 from .models import Order, OrderDetail, OperationLog, BalancePayment, Installer
@@ -18,7 +18,7 @@ class CreateOrderView(APIView):
     """
     新增订单接口
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsBoss|IsManager]
 
     def post(self, request):
         # 获取序列化器实例
@@ -133,7 +133,7 @@ class OrderViewSet(viewsets.ReadOnlyModelViewSet):
     """
     queryset = Order.objects.all()
     serializer_class = serializers.OrderSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsBoss|IsManager]
     pagination_class = paginations.OrderPagination
     filter_backends = [filters.SearchFilter]
     search_fields = ['order_number', 'client__name', 'brand__name']
@@ -238,7 +238,7 @@ class OrderDetailViewSet(viewsets.ReadOnlyModelViewSet):
     """
     queryset = OrderDetail.objects.all()
     serializer_class = serializers.OrderDetailSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsBoss|IsManager]
     pagination_class = paginations.OrderDetailPagination
     
     def get_queryset(self):
@@ -255,7 +255,7 @@ class OperationLogViewSet(viewsets.ReadOnlyModelViewSet):
     """
     queryset = OperationLog.objects.all().order_by('-created_at')
     serializer_class = serializers.OperationLogSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsBoss|IsManager]
     pagination_class = paginations.OperationLogPagination
     
     def get_queryset(self):
@@ -272,7 +272,7 @@ class BalancePaymentViewSet(viewsets.mixins.CreateModelMixin, viewsets.GenericVi
     """
     queryset = BalancePayment.objects.all().order_by('-payment_time')
     serializer_class = serializers.BalancePaymentSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsBoss]
     
     def get_queryset(self):
         """根据订单ID过滤支付记录"""
@@ -345,7 +345,7 @@ class OrderInstallViewSet(viewsets.mixins.UpdateModelMixin, viewsets.GenericView
     """
     queryset = Order.objects.all()
     serializer_class = serializers.OrderInstallSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsBoss|IsManager]
     
     def update(self, request, *args, **kwargs):
         """重写update方法实现一键出库功能"""
@@ -448,12 +448,13 @@ class OrderInstallViewSet(viewsets.mixins.UpdateModelMixin, viewsets.GenericView
         except Exception as e:
             return Response({'detail': f'订单出库失败: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
 
-class InstallerViewSet(viewsets.ModelViewSet):
+class InstallerViewSet(viewsets.mixins.CreateModelMixin,viewsets.mixins.UpdateModelMixin, viewsets.mixins.ListModelMixin, viewsets.mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     """
     安装师傅视图集
     """
     queryset = Installer.objects.all()
     serializer_class = serializers.InstallerSerializer
+    permission_classes = [IsAuthenticated,IsBoss|IsManager]
 
     # 重写详情函数, 该接口不只返回安装工人的姓名和电话,还有其本月安装费
     def retrieve(self, request, *args, **kwargs):
@@ -485,7 +486,7 @@ class AbandonOrderViewSet(APIView):
     """
     订单作废接口
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated,IsBoss]
 
     def post(self, request):
         # 获取订单ID

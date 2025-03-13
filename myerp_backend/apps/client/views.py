@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db.models import Q
 from django.utils import timezone
+from apps.staff.permissions import IsBoss,IsManager
 
 from .models import Client, FollowUpRecord
 from .serializers import (
@@ -33,7 +34,7 @@ class ClientModelViewSet(viewsets.GenericViewSet,
     """
     queryset = Client.objects.all()
     serializer_class = ClientListSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsBoss | IsManager]
     pagination_class = ClientPagination
     
     def get_queryset(self):
@@ -163,5 +164,5 @@ class AllClientViewSet(viewsets.GenericViewSet,
     """
     queryset = Client.objects.all()
     serializer_class = ClientListSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsBoss | IsManager]
 

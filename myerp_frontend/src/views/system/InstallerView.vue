@@ -220,8 +220,8 @@ const formatCurrency = (value) => {
                   <el-icon><Edit /></el-icon>
                 </el-button>
               </el-tooltip>
-              <el-tooltip content="删除" placement="top" effect="light">
-                <el-button type="danger" @click="onDelete(scope.row.id)">
+              <el-tooltip content="禁止删除" placement="top" effect="light">
+                <el-button type="danger" @click="onDelete(scope.row.id)" disabled>
                   <el-icon><Delete /></el-icon>
                 </el-button>
               </el-tooltip>

@@ -370,7 +370,7 @@ const paymentFormRules = {
             <span class="table-amount">￥{{ scope.row.total_amount }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="毛利润" >
+        <el-table-column label="毛利润" v-if="authStore.canViewCost">
           <template #default="scope">
             <span :class="['table-profit', { 'positive-profit': scope.row.gross_profit >= 0, 'negative-profit': scope.row.gross_profit < 0 }]">
               ￥{{ scope.row.gross_profit }}
@@ -412,7 +412,7 @@ const paymentFormRules = {
                 <span>查看详情</span>
               </el-button>
               <el-button
-                v-if="scope.row.pending_balance > 0"
+                v-if="scope.row.pending_balance > 0 && authStore.canViewCost"
                 type="warning"
                 @click="openPaymentForm(scope.row)"
                 size="small"

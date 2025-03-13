@@ -3,7 +3,7 @@ from rest_framework.permissions import IsAuthenticated
 
 from .models import Brand
 from .serializers import BrandSerializer
-
+from apps.staff.permissions import IsBoss
 
 class BrandModelViewSet(viewsets.mixins.CreateModelMixin,
                         viewsets.mixins.UpdateModelMixin,

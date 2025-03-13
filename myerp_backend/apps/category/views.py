@@ -1,5 +1,6 @@
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
+from apps.staff.permissions import IsBoss
 
 from .models import Category
 from .serializers import CategorySerializer
