@@ -58,6 +58,10 @@ class ClientCreateSerializer(serializers.ModelSerializer):
         # 创建客户时，设置最后跟进时间为当前时间
         validated_data['last_follow_time'] = timezone.now()
         return super().create(validated_data)
+        
+    def to_representation(self, instance):
+        """创建完成后返回完整的客户信息,包括uid字段"""
+        return ClientListSerializer(instance).data
 
 
 class FollowUpCreateSerializer(serializers.ModelSerializer):

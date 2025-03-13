@@ -75,7 +75,7 @@ const downloadInventory = () => {
         <div class="section-content">
           <div class="warning-box">
             <el-icon><Warning /></el-icon>
-            <span>建议在进行上传操作前，先下载当前库存数据作为备份</span>
+            <span>建议：在进行上传操作前，先下载当前库存数据作为备份！</span>
           </div>
           <el-button type="primary" @click="downloadInventory" class="action-button">
             <el-icon><Download /></el-icon>

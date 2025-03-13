@@ -19,7 +19,7 @@ class OrderCreateSerializer(serializers.Serializer):
     total_cost = serializers.DecimalField(required=True, max_digits=10, decimal_places=2)
     gross_profit = serializers.DecimalField(required=True, max_digits=10, decimal_places=2)
     address = serializers.CharField(required=True, max_length=200)
-    remark = serializers.CharField(required=False, max_length=200)
+    remark = serializers.CharField(required=False, default='', max_length=200)
     details = serializers.ListField(
         child=serializers.DictField(
             child=serializers.IntegerField(),

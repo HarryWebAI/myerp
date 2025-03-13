@@ -157,11 +157,11 @@ onMounted(() => {
         </div>
         <div class="info-footer">
           <div class="summary-item">
-            <span class="label">总数量：</span>
-            <span class="value highlight">{{ totalQuantity }}个</span>
+            <span class="label">发货总量：</span>
+            <span class="value highlight">{{ totalQuantity }}件</span>
           </div>
           <div class="summary-item">
-            <span class="label">总成本：</span>
+            <span class="label">该次成本：</span>
             <span class="value highlight">{{ formatPrice(purchaseData.total_cost) }}</span>
           </div>
         </div>

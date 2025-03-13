@@ -9,6 +9,8 @@ import clientHttp from '@/api/clientHttp';
 import staffHttp from '@/api/staffHttp';
 import brandAndCategoryHttp from '@/api/brandAndCategoryHttp';
 import inventoryHttp from '@/api/inventoryHttp';
+import { Plus } from '@element-plus/icons-vue';
+import { chineseNameRegExp, telphoneRegExp } from '@/utils/regExp';
 
 const router = useRouter();
 
@@ -68,7 +70,6 @@ onMounted(() => {
 // 获取所有客户
   clientHttp.getAllClients().then(result => {
     if (result.status === 200) {
-      console.log(result.data)
       clients.value = result.data;
     } else {
       ElMessage.error('获取客户数据失败！');
@@ -356,7 +357,7 @@ const submitOrder = () => {
     if (result.status === 201) {
       ElMessage.success('订单创建成功！');
       // 跳转至订单列表页面
-      router.push({ name: 'order_list' });
+      router.push({ name: 'order_detail', params: { id: result.data.order_id } })
     } else {
       // 检查是否有详细错误信息
       if (result.data && result.data.detail) {
@@ -515,6 +516,101 @@ const handleClientChange = () => {
     orderForm.address = '';
   }
 };
+
+// 新增客户相关功能
+const createClientFormVisible = ref(false)
+const createClientFormData = reactive({
+  name: '',
+  telephone: '',
+  address: '',
+  level: 0, // 默认为已成交客户
+  remark: '',
+  staff: ''
+})
+const createClientForm = ref()
+
+// 新增客户表单验证规则
+const clientFormRules = reactive({
+  name: [
+    { required: true, message: '请输入客户姓名', trigger: 'blur' },
+    { min: 2, max: 30, message: '客户姓名长度在2到30个字符之间', trigger: 'blur' }
+  ],
+  telephone: [
+    { required: true, message: '请输入联系电话', trigger: 'blur' }
+  ],
+  address: [
+    { required: true, message: '请输入详细住址', trigger: 'blur' }
+  ],
+  staff: [
+    { required: true, message: '请选择所属员工', trigger: 'change' }
+  ]
+})
+
+// 打开新增客户表单
+const openCreateClientForm = () => {
+  createClientFormData.name = ''
+  createClientFormData.telephone = ''
+  createClientFormData.address = ''
+  createClientFormData.level = 0 // 固定为已成交客户
+  createClientFormData.remark = ''
+  createClientFormData.staff = ''
+  createClientFormVisible.value = true
+}
+
+// 创建新客户
+const createClient = () => {
+  createClientForm.value.validate((valid, fields) => {
+    if (valid) {
+      // 使用正则表达式进行验证
+      if (!chineseNameRegExp.test(createClientFormData.name)) {
+        ElMessage.error('客户姓名格式错误,请输入2-15个汉字(可包含·•符号)');
+        return;
+      }
+
+      if (!telphoneRegExp.test(createClientFormData.telephone)) {
+        ElMessage.error('手机号码格式错误,请输入11位数字的手机号');
+        return;
+      }
+
+      // 确保level为0(已成交客户)
+      createClientFormData.level = 0
+
+      clientHttp.createClient(createClientFormData).then(result => {
+        if (result.status === 201 || result.status === 200) {
+          // 将新客户添加到客户列表
+          const newClient = result.data
+          clients.value.unshift(newClient)
+
+          // 自动选择新创建的客户
+          orderForm.client_id = newClient.uid
+
+          // 自动填入地址
+          orderForm.address = newClient.address
+
+          // 自动设置签单人员为新建客户的所属员工
+          orderForm.staff_id = createClientFormData.staff
+
+          ElMessage.success('创建客户成功!')
+          createClientFormVisible.value = false
+        } else {
+          ElMessage.error(result.data.detail || '创建客户失败')
+        }
+      }).catch(error => {
+        console.error('创建客户错误:', error)
+        if (error.response && error.response.data) {
+          ElMessage.error('创建客户失败: ' + JSON.stringify(error.response.data))
+        } else {
+          ElMessage.error('创建客户失败')
+        }
+      })
+    } else {
+      // 显示表单验证错误
+      for (let key in fields) {
+        ElMessage.error(fields[key][0].message)
+      }
+    }
+  })
+}
 </script>
 
 <template>
@@ -561,6 +657,13 @@ const handleClientChange = () => {
               style="width: 100%"
               @change="handleClientChange"
             >
+              <el-option :value="0">
+                <div class="new-client-option">
+                  <el-button type="success" @click.stop="openCreateClientForm()" :icon="Plus">
+                    首次到店即成交客户?新增客户
+                  </el-button>
+                </div>
+              </el-option>
               <el-option
                 v-for="client in clients"
                 :key="client.uid"
@@ -880,6 +983,57 @@ const handleClientChange = () => {
       </el-form-item>
     </el-form>
   </FormDialog>
+
+  <!-- 新增客户对话框 -->
+  <FormDialog
+    title="新增客户"
+    v-model="createClientFormVisible"
+    @submit="createClient"
+    width="500px"
+  >
+    <el-form
+      ref="createClientForm"
+      :model="createClientFormData"
+      :rules="clientFormRules"
+      label-width="100px"
+      class="create-form"
+    >
+      <el-form-item label="客户姓名" prop="name">
+        <el-input v-model="createClientFormData.name" placeholder="请输入客户姓名"></el-input>
+      </el-form-item>
+      <el-form-item label="联系电话" prop="telephone">
+        <el-input v-model="createClientFormData.telephone" placeholder="请输入联系电话"></el-input>
+      </el-form-item>
+      <el-form-item label="详细住址" prop="address">
+        <el-input v-model="createClientFormData.address" placeholder="请输入详细住址"></el-input>
+      </el-form-item>
+      <el-form-item label="客户级别" prop="level">
+        <el-select v-model="createClientFormData.level" placeholder="请选择客户级别" disabled>
+          <el-option label="已成交客户" :value="0"></el-option>
+        </el-select>
+        <div style="color: #909399; font-size: 12px; margin-top: 5px;">
+          首次到店即成交的客户将自动标记为"已成交客户"
+        </div>
+      </el-form-item>
+      <el-form-item label="所属员工" prop="staff">
+        <el-select v-model="createClientFormData.staff" placeholder="请选择所属员工">
+          <el-option
+            v-for="staff in staffs"
+            :key="staff.uid"
+            :label="staff.name"
+            :value="staff.uid"
+          ></el-option>
+        </el-select>
+      </el-form-item>
+      <el-form-item label="备注信息" prop="remark">
+        <el-input
+          v-model="createClientFormData.remark"
+          type="textarea"
+          placeholder="请输入备注信息(选填)"
+        ></el-input>
+      </el-form-item>
+    </el-form>
+  </FormDialog>
 </template>
 
 <style scoped>
@@ -928,5 +1082,10 @@ const handleClientChange = () => {
 .text-strikethrough {
   text-decoration: line-through;
   color: #f56c6c;
+}
+
+.new-client-option {
+  padding: 5px 0;
+  text-align: center;
 }
 </style>

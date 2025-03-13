@@ -157,8 +157,8 @@ onMounted(() => {
         </div>
         <div class="info-footer">
           <div class="summary-item">
-            <span class="label">总数量：</span>
-            <span class="value highlight">{{ totalQuantity }}个</span>
+            <span class="label">收货总量：</span>
+            <span class="value highlight">{{ totalQuantity }}件</span>
           </div>
         </div>
       </div>
