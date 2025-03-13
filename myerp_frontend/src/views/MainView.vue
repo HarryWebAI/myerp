@@ -155,7 +155,7 @@ const resetPassword = () => {
         </template>
         <el-menu-item index="5-1" :route="{ name: 'order_create' }">
           <el-icon><CirclePlus /></el-icon>
-          <span>新增订单</span>
+          <span>创建订单</span>
         </el-menu-item>
         <el-menu-item index="5-2" :route="{ name: 'order_list' }">
           <el-icon><List /></el-icon>

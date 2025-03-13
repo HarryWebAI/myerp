@@ -69,4 +69,8 @@ class ReceiveLog(models.Model):
     content = models.TextField()
     operator = models.ForeignKey(ERPUser, on_delete=models.CASCADE, related_name='receive_logs', related_query_name='receive_logs')
     create_time = models.DateTimeField(auto_now_add=True)
-    
+
+class InventoryLog(models.Model):
+    content = models.TextField()
+    operator = models.ForeignKey(ERPUser, on_delete=models.CASCADE, related_name='inventory_logs', related_query_name='inventory_logs')
+    create_time = models.DateTimeField(auto_now_add=True)

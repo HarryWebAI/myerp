@@ -10,6 +10,8 @@ from django.http import HttpResponse
 from datetime import datetime
 import os  # 添加os模块用于文件扩展名验证
 from rest_framework.parsers import MultiPartParser  # 添加文件上传解析器
+from apps.order.models import OperationLog
+from django.db.models import Prefetch
 
 class InventoryViewSet(viewsets.GenericViewSet,
                        viewsets.mixins.CreateModelMixin,
@@ -193,7 +195,7 @@ class PurchaseDetailView(APIView):
                 'user'
             ).prefetch_related(
                 'details__inventory',
-                'logs__operator'
+                Prefetch('logs', queryset=models.PurchaseLog.objects.order_by('-create_time'), to_attr='ordered_logs')
             ).get(id=id)
 
             serializer = serializers.PurchaseDetailFullSerializer(purchase)
@@ -309,7 +311,7 @@ class ReceiveDetailView(APIView):
                 'user'
             ).prefetch_related(
                 'details__inventory',
-                'logs__operator'
+                Prefetch('logs', queryset=models.ReceiveLog.objects.order_by('-create_time'), to_attr='ordered_logs')
             ).get(id=id)
 
             serializer = serializers.ReceiveDetailFullSerializer(receive)
@@ -779,7 +781,47 @@ class InventoryUploadView(APIView):
                 
                 # 7. 批量创建库存记录
                 models.Inventory.objects.bulk_create(inventory_objects)
-            
+
+                # 8. 创建库存日志
+                log_content = f"{request.user.name}于{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}进行了库存盘点\n"
+                log_content += f"成功导入{len(inventory_objects)}条库存记录"
+                models.InventoryLog.objects.create(
+                    content=log_content,
+                    operator=request.user
+                )
+
+                # 获取当前时间作为盘点时间点
+                current_time = datetime.now()
+                inventory_check_message = f"系统管理员在{current_time.strftime('%Y-%m-%d %H:%M:%S')}进行了库存盘点，此次盘点之前的所有数据已失效!"
+                
+                # 为所有采购记录添加盘点日志
+                purchases = models.Purchase.objects.filter(create_time__lt=current_time)
+                for purchase in purchases:
+                    models.PurchaseLog.objects.create(
+                        purchase=purchase,
+                        content=inventory_check_message,
+                        operator=request.user
+                    )
+                
+                # 为所有收货记录添加盘点日志
+                receives = models.Receive.objects.filter(create_time__lt=current_time)
+                for receive in receives:
+                    models.ReceiveLog.objects.create(
+                        receive=receive,
+                        content=inventory_check_message,
+                        operator=request.user
+                    )
+                
+                # 为订单添加操作日志
+                from apps.order.models import Order
+                orders = Order.objects.filter(sign_time__lt=current_time)
+                for order in orders:
+                    OperationLog.objects.create(
+                        order=order,
+                        description=inventory_check_message,
+                        operator=request.user
+                    )
+                
             return Response({
                 'detail': f'成功导入{len(inventory_objects)}条库存记录',
                 'count': len(inventory_objects)
@@ -788,4 +830,14 @@ class InventoryUploadView(APIView):
         except Exception as e:
             return Response({'detail': f'导入失败: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
 
+class InventoryLogView(APIView):
+    """
+    库存日志接口
+    """
+    permission_classes = [IsAuthenticated]
     
+    def get(self, request):
+        # 获取所有库存日志
+        queryset = models.InventoryLog.objects.order_by('-create_time').all()
+        serializer = serializers.InventoryLogSerializer(queryset, many=True)
+        return Response(serializer.data)

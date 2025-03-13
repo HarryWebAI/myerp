@@ -110,6 +110,13 @@ const downloadInventoryData = () => {
   return http.download(path)
 }
 
+// 获取库存日志
+const requestInventoryLog = () => {
+  const path = '/log/'
+
+  return http.get(path)
+}
+
 export default {
   createInventoryData,
   requestInventoryData,
@@ -126,4 +133,5 @@ export default {
   deletePurchaseDetail,
   deleteReceiveDetail,
   downloadInventoryData,
+  requestInventoryLog,
 }

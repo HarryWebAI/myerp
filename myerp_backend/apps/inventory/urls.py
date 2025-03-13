@@ -21,5 +21,6 @@ urlpatterns = [
                   path('receive/detail/update/<int:id>/', views.ReceiveDetailUpdateView.as_view(), name='receive-detail-update'),
                   path('receive/detail/delete/<int:id>/', views.ReceiveDetailDeleteView.as_view(), name='receive-detail-delete'),
                   path('download/', views.InventoryDownloadView.as_view(), name='inventory-download'),
-                  path('upload/', views.InventoryUploadView.as_view(), name='inventory-upload')
+                  path('upload/', views.InventoryUploadView.as_view(), name='inventory-upload'),
+                  path('log/', views.InventoryLogView.as_view(), name='inventory-log')
               ] + router.urls

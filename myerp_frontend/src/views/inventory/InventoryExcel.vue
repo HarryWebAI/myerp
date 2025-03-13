@@ -4,10 +4,12 @@ import { ElMessage } from 'element-plus'
 import inventoryHttp from '@/api/inventoryHttp'
 import timeFormatter from '@/utils/timeFormatter'
 import { useAuthStore } from '@/stores/auth'
-import { Download, Upload, Warning } from '@element-plus/icons-vue'
-
+import { Download, Upload, Warning, Document } from '@element-plus/icons-vue'
+import inventoryLog from '@/api/inventoryHttp'
+import { ref, onMounted } from 'vue'
 const authStore = useAuthStore()
 const baseAction = import.meta.env.VITE_BASE_URL
+const logs = ref([])
 
 // 上传前的验证
 const beforeUpload = (file) => {
@@ -33,6 +35,9 @@ const beforeUpload = (file) => {
 const handleSuccess = (response) => {
   if (response.detail) {
     ElMessage.success(response.detail)
+    setTimeout(() => {
+      window.location.reload()
+    }, 1000);
   }
 }
 
@@ -60,6 +65,29 @@ const downloadInventory = () => {
       ElMessage.error('下载失败')
     }
   })
+}
+
+onMounted(() => {
+  inventoryLog.requestInventoryLog().then(result => {
+    if (result.status === 200) {
+      logs.value = result.data
+    } else {
+      ElMessage.error('获取库存日志失败')
+    }
+  })
+})
+
+// 格式化时间
+const formatTime = (timeString) => {
+  if (!timeString) return '';
+  const date = new Date(timeString);
+  return timeFormatter.stringFromDateTime(date);
+}
+
+// 获取日志类型（用于时间线图标颜色）
+const getLogType = () => {
+  // 可以根据日志内容判断不同类型，这里简单返回primary
+  return 'primary';
 }
 </script>
 
@@ -120,6 +148,35 @@ const downloadInventory = () => {
           </el-upload>
         </div>
       </div>
+
+      <!-- 库存盘点日志 -->
+      <div class="section log-section">
+        <div class="section-header">
+          <el-icon class="header-icon"><Document /></el-icon>
+          <h3>库存盘点日志</h3>
+          <div class="header-extra">共 {{ logs.length }} 条记录</div>
+        </div>
+        <div class="section-content">
+          <el-empty v-if="logs.length === 0" description="暂无盘点记录" />
+          <el-timeline v-else>
+            <el-timeline-item
+              v-for="log in logs"
+              :key="log.id"
+              :timestamp="formatTime(log.create_time)"
+              placement="top"
+              :type="getLogType()"
+            >
+              <el-card class="log-card">
+                <div class="log-header">
+                  <span class="log-title">盘点操作</span>
+                  <el-tag size="small">{{ log.operator_name }}</el-tag>
+                </div>
+                <div class="log-content">{{ log.content }}</div>
+              </el-card>
+            </el-timeline-item>
+          </el-timeline>
+        </div>
+      </div>
     </div>
   </MainBox>
 </template>
@@ -150,6 +207,7 @@ const downloadInventory = () => {
   margin-bottom: 20px;
   border-bottom: 1px solid #ebeef5;
   padding-bottom: 16px;
+  position: relative;
 }
 
 .header-icon {
@@ -274,5 +332,63 @@ const downloadInventory = () => {
   .section-header h3 {
     font-size: 16px;
   }
+}
+
+.log-section {
+  /* margin-top已由容器的gap属性控制 */
+}
+
+.header-extra {
+  margin-left: auto;
+  color: #909399;
+  font-size: 14px;
+}
+
+.log-card {
+  --el-card-padding: 16px;
+  margin-bottom: 5px;
+  transition: all 0.3s;
+}
+
+.log-card:hover {
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+}
+
+.log-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.log-title {
+  font-weight: 500;
+  color: #303133;
+}
+
+.log-content {
+  color: #606266;
+  line-height: 1.6;
+}
+
+.log-content :deep(strong) {
+  font-weight: 600;
+}
+
+:deep(.el-timeline-item__node--primary) {
+  background-color: var(--el-color-primary);
+}
+
+:deep(.el-timeline-item__timestamp) {
+  color: #909399;
+  margin-bottom: 8px;
+}
+
+/* 调整时间线间距 */
+:deep(.el-timeline-item) {
+  padding-bottom: 20px;
+}
+:deep(.el-timeline-item:last-child) {
+  padding-bottom: 0;
 }
 </style>

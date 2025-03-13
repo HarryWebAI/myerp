@@ -81,7 +81,7 @@ class ReceiveLogSerializer(serializers.ModelSerializer):
 
 class ReceiveDetailFullSerializer(serializers.ModelSerializer):
     details = ReceiveDetailSerializer(source='details.all', many=True, read_only=True)
-    logs = ReceiveLogSerializer(source='logs.all', many=True, read_only=True)
+    logs = ReceiveLogSerializer(source='ordered_logs', many=True, read_only=True)
     brand = BrandSerializer(read_only=True)
     user = StaffSerializer(read_only=True)
     
@@ -98,10 +98,18 @@ class PurchaseLogSerializer(serializers.ModelSerializer):
 
 class PurchaseDetailFullSerializer(serializers.ModelSerializer):
     details = PurchaseDetailSerializer(source='details.all', many=True, read_only=True)
-    logs = PurchaseLogSerializer(source='logs.all', many=True, read_only=True)
+    logs = PurchaseLogSerializer(source='ordered_logs', many=True, read_only=True)
     brand = BrandSerializer(read_only=True)
     user = StaffSerializer(read_only=True)
     
     class Meta:
         model = models.Purchase
         fields = ['id', 'brand', 'total_cost', 'user', 'create_time', 'details', 'logs']
+
+class InventoryLogSerializer(serializers.ModelSerializer):
+    operator_name = serializers.CharField(source='operator.name', read_only=True)
+    
+    class Meta:
+        model = models.InventoryLog
+        fields = ['id', 'content', 'operator_name', 'create_time']
+
