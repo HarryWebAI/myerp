@@ -123,7 +123,7 @@ const resetPassword = () => {
           </el-icon>
           <span>品牌种类</span>
         </el-menu-item>
-        <el-menu-item index="3-2">
+        <el-menu-item index="3-2" :route="{ name: 'staff' }">
           <el-icon><Avatar /></el-icon>
           <span>销售人员</span>
         </el-menu-item>

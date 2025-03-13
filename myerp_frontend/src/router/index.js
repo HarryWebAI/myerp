@@ -18,7 +18,7 @@ import CreateOrder from '@/views/order/CreateOrder.vue'
 import OrderList from '@/views/order/OrderList.vue'
 import InventoryExcel from '@/views/inventory/InventoryExcel.vue'
 import InstallerView from '@/views/system/InstallerView.vue'
-
+import StaffView from '@/views/system/StaffView.vue'
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -44,6 +44,11 @@ const router = createRouter({
               path: 'installer',
               name: 'installer',
               component: InstallerView,
+            },
+            {
+              path: 'staff',
+              name: 'staff',
+              component: StaffView,
             }
           ],
         },
