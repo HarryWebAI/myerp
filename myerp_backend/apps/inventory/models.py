@@ -57,3 +57,16 @@ class ReceiveDetail(models.Model):
     inventory = models.ForeignKey(Inventory, on_delete=models.CASCADE, related_name='receive_details', related_query_name='receive_details')
     # 入库数量
     quantity = models.IntegerField()
+
+class PurchaseLog(models.Model):
+    purchase = models.ForeignKey(Purchase, on_delete=models.CASCADE, related_name='logs', related_query_name='logs')
+    content = models.TextField()
+    operator = models.ForeignKey(ERPUser, on_delete=models.CASCADE, related_name='purchase_logs', related_query_name='purchase_logs')
+    create_time = models.DateTimeField(auto_now_add=True)
+
+class ReceiveLog(models.Model):
+    receive = models.ForeignKey(Receive, on_delete=models.CASCADE, related_name='logs', related_query_name='logs')
+    content = models.TextField()
+    operator = models.ForeignKey(ERPUser, on_delete=models.CASCADE, related_name='receive_logs', related_query_name='receive_logs')
+    create_time = models.DateTimeField(auto_now_add=True)
+    

@@ -70,7 +70,6 @@ class InventoryViewSet(viewsets.GenericViewSet,
 
         return Response({'data': serializer.data, 'total_cost': total_cost})
 
-
 class AllInventoryViewSet(viewsets.GenericViewSet,
                           viewsets.mixins.ListModelMixin):
     """
@@ -92,7 +91,6 @@ class AllInventoryViewSet(viewsets.GenericViewSet,
             return None
 
         return queryset.order_by('-id').all()
-
 
 class PurchaseView(APIView):
     """
@@ -136,10 +134,22 @@ class PurchaseView(APIView):
                 # 批量创建采购明细
                 models.PurchaseDetail.objects.bulk_create(details)
 
+                # 创建采购日志，记录详细的采购信息
+                log_content = f"用户{request.user.name}于{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}进行了采购操作\n"
+                log_content += "采购明细：\n"
+                for detail in details:
+                    log_content += f"- {detail.inventory.full_name()}：{detail.quantity}个，单价：{detail.inventory.cost}元\n"
+                log_content += f"总成本：{serializer.validated_data['total_cost']}元"
+
+                models.PurchaseLog.objects.create(
+                    purchase=purchase,
+                    content=log_content,
+                    operator=request.user
+                )
+
             return Response({'purchase_id': purchase.id, 'message': "发货成功!"}, status=status.HTTP_201_CREATED)
         except:
             return Response({'detail': '发货失败!'}, status=status.HTTP_400_BAD_REQUEST)
-
 
 class PurchaseList(APIView):
     """
@@ -167,7 +177,6 @@ class PurchaseList(APIView):
         # 返回分页响应
         return paginator.get_paginated_response(serializer.data)
 
-
 class PurchaseDetailView(APIView):
     """
     发货详情
@@ -178,20 +187,27 @@ class PurchaseDetailView(APIView):
             if not str(id).isdigit():
                 raise ValueError("ID必须为数字")
 
-            queryset = models.PurchaseDetail.objects.filter(purchase__id=id).select_related('inventory')
+            # 获取采购单及其关联数据
+            purchase = models.Purchase.objects.select_related(
+                'brand', 
+                'user'
+            ).prefetch_related(
+                'details__inventory',
+                'logs__operator'
+            ).get(id=id)
 
-            if not queryset.exists():
-                return Response(
-                    {"detail": "未找到指定的采购详情"},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-
-            serializer = serializers.PurchaseDetailSerializer(queryset, many=True)
+            serializer = serializers.PurchaseDetailFullSerializer(purchase)
             return Response(serializer.data)
 
+        except models.Purchase.DoesNotExist:
+            return Response(
+                {"detail": "未找到指定的采购单"},
+                status=status.HTTP_404_NOT_FOUND
+            )
         except ValueError as e:
-            return Response({"detail": str(e)},status=status.HTTP_400_BAD_REQUEST)
-
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"detail": f"获取详情失败：{str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
 class ReceiveView(APIView):
     """
@@ -235,10 +251,21 @@ class ReceiveView(APIView):
                 # 批量创建入库明细
                 models.ReceiveDetail.objects.bulk_create(details)
 
+                # 创建入库日志，记录详细的入库信息
+                log_content = f"用户{request.user.name}于{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}进行了入库操作\n"
+                log_content += "入库明细：\n"
+                for detail in details:
+                    log_content += f"- {detail.inventory.full_name()}：{detail.quantity}个\n"
+
+                models.ReceiveLog.objects.create(
+                    receive=receive,
+                    content=log_content,
+                    operator=request.user
+                )
+
             return Response({'receive_id': receive.id, 'message': "入库成功!"}, status=status.HTTP_201_CREATED)
         except Exception as e:
             return Response({'detail': f'入库失败! {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
-
 
 class ReceiveList(APIView):
     """
@@ -266,7 +293,6 @@ class ReceiveList(APIView):
         # 返回分页响应
         return paginator.get_paginated_response(serializer.data)
 
-
 class ReceiveDetailView(APIView):
     """
     收货详情
@@ -277,20 +303,27 @@ class ReceiveDetailView(APIView):
             if not str(id).isdigit():
                 raise ValueError("ID必须为数字")
 
-            queryset = models.ReceiveDetail.objects.filter(receive__id=id).select_related('inventory')
+            # 获取收货单及其关联数据
+            receive = models.Receive.objects.select_related(
+                'brand', 
+                'user'
+            ).prefetch_related(
+                'details__inventory',
+                'logs__operator'
+            ).get(id=id)
 
-            if not queryset.exists():
-                return Response(
-                    {"detail": "未找到指定的收货详情"},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-
-            serializer = serializers.ReceiveDetailSerializer(queryset, many=True)
+            serializer = serializers.ReceiveDetailFullSerializer(receive)
             return Response(serializer.data)
 
+        except models.Receive.DoesNotExist:
+            return Response(
+                {"detail": "未找到指定的收货单"},
+                status=status.HTTP_404_NOT_FOUND
+            )
         except ValueError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
+        except Exception as e:
+            return Response({"detail": f"获取详情失败：{str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
 class PurchaseDetailUpdateView(APIView):
     """
@@ -352,8 +385,19 @@ class PurchaseDetailUpdateView(APIView):
             purchase.total_cost = F('total_cost') + cost_diff
             purchase.save(update_fields=['total_cost'])
             
-            # 8. 可选：记录修改历史
-            # 如果有PurchaseModificationLog模型，可以在这里创建记录
+            # 8. 创建采购修正日志
+            log_content = f"用户{request.user.name}于{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}进行了采购明细修正操作\n"
+            log_content += f"商品：{inventory.full_name()}\n"
+            log_content += f"原数量：{old_quantity}个\n"
+            log_content += f"新数量：{new_quantity}个\n"
+            log_content += f"变化：{diff}个\n"
+            log_content += f"成本变化：{cost_diff}元"
+
+            models.PurchaseLog.objects.create(
+                purchase=purchase,
+                content=log_content,
+                operator=request.user
+            )
             
             return Response({
                 'detail': '采购明细更新成功',
@@ -367,7 +411,6 @@ class PurchaseDetailUpdateView(APIView):
             return Response({'detail': '找不到指定的采购明细'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({'detail': f'更新失败：{str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
-
 
 class ReceiveDetailUpdateView(APIView):
     """
@@ -414,8 +457,20 @@ class ReceiveDetailUpdateView(APIView):
             detail.quantity = new_quantity
             detail.save(update_fields=['quantity'])
             
-            # 6. 可选：记录修改历史
-            # 如果有ReceiveModificationLog模型，可以在这里创建记录
+            # 6. 创建收货修正日志
+            log_content = f"用户{request.user.name}于{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}进行了收货明细修正操作\n"
+            log_content += f"商品：{inventory.full_name()}\n"
+            log_content += f"原数量：{old_quantity}个\n"
+            log_content += f"新数量：{new_quantity}个\n"
+            log_content += f"变化：{diff}个\n"
+            log_content += f"当前在库：{inventory.in_stock}个\n"
+            log_content += f"当前在途：{inventory.on_road}个"
+
+            models.ReceiveLog.objects.create(
+                receive=detail.receive,
+                content=log_content,
+                operator=request.user
+            )
             
             return Response({
                 'detail': '收货明细更新成功',
@@ -430,7 +485,6 @@ class ReceiveDetailUpdateView(APIView):
             return Response({'detail': '找不到指定的收货明细'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({'detail': f'更新失败：{str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
-
 
 class PurchaseDetailDeleteView(APIView):
     """
@@ -477,11 +531,19 @@ class PurchaseDetailDeleteView(APIView):
             # 6. 删除采购明细
             detail.delete()
             
-            # 7. 如果这是采购单的最后一个明细，删除采购单
+            # 7. 采购日志记录采购单作废
+            log_content = f"用户{request.user.name}于{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}删除了采购明细\n"
+            log_content += f"商品：{inventory.full_name()}\n"
+            log_content += f"删除数量：{detail.quantity}个\n"
+            log_content += f"成本减少：{cost_reduction}元"
             order_deleted = False  # 初始化变量
             if not models.PurchaseDetail.objects.filter(purchase=purchase).exists():
-                purchase.delete()
                 order_deleted = True
+            models.PurchaseLog.objects.create(
+                purchase=purchase,
+                content=log_content,
+                operator=request.user
+            )
             
             return Response({
                 'detail': '采购明细删除成功',
@@ -494,7 +556,6 @@ class PurchaseDetailDeleteView(APIView):
             return Response({'detail': '找不到指定的采购明细'}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({'detail': f'删除失败：{str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
-
 
 class ReceiveDetailDeleteView(APIView):
     """
@@ -521,11 +582,25 @@ class ReceiveDetailDeleteView(APIView):
             # 4. 删除收货明细
             detail.delete()
             
-            # 5. 如果这是收货单的最后一个明细，删除收货单
+            # 5. 如果这是收货单的最后一个明细，告诉前端
             order_deleted = False  # 初始化变量
             if not models.ReceiveDetail.objects.filter(receive=receive).exists():
-                receive.delete()
                 order_deleted = True
+            
+            # 6. 创建收货作废日志
+            log_content = f"用户{request.user.name}于{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}删除了收货明细\n"
+            log_content += f"商品：{inventory.full_name()}\n"
+            log_content += f"删除数量：{detail.quantity}个\n"
+            log_content += f"当前在库：{inventory.in_stock}个\n"
+            log_content += f"当前在途：{inventory.on_road}个"
+            if order_deleted:
+                log_content += "\n该收货单所有明细已删除，收货单作废"
+
+            models.ReceiveLog.objects.create(
+                receive=receive,
+                content=log_content,
+                operator=request.user
+            )
             
             return Response({
                 'detail': '收货明细删除成功',
@@ -563,7 +638,7 @@ class InventoryDownloadView(APIView):
                 'name': '名称',
                 'brand__name': '品牌',
                 'category__name': '分类',
-                'size': '尺码',
+                'size': '规格',
                 'color': '颜色',
                 'cost': '成本',
                 'on_road': '物流在途',
@@ -607,7 +682,7 @@ class InventoryUploadView(APIView):
             df = pd.read_excel(file)
             
             # 4. 验证必要的列是否存在
-            required_columns = ['名称', '品牌', '分类', '尺码', '颜色', '成本']
+            required_columns = ['名称', '品牌', '分类', '规格', '颜色', '成本']
             missing_columns = [col for col in required_columns if col not in df.columns]
             if missing_columns:
                 return Response(
@@ -623,8 +698,8 @@ class InventoryUploadView(APIView):
             existing_categories = set(models.Category.objects.values_list('name', flat=True))
             
             # 获取Excel中的所有品牌和分类
-            excel_brands = set(df['品牌'].unique())
-            excel_categories = set(df['分类'].unique())
+            excel_brands = set(df['品牌'].astype(str).unique())
+            excel_categories = set(df['分类'].astype(str).unique())
             
             # 检查是否有不存在的品牌
             invalid_brands = excel_brands - existing_brands
@@ -652,21 +727,53 @@ class InventoryUploadView(APIView):
                 # 遍历Excel的每一行
                 for index, row in df.iterrows():
                     # 从预加载的字典中获取品牌和分类对象
-                    brand = brands_dict[row['品牌']]
-                    category = categories_dict[row['分类']]
+                    brand = brands_dict[str(row['品牌'])]
+                    category = categories_dict[str(row['分类'])]
+                    
+                    # 确保数值字段为正确的类型，处理空值和NaN
+                    try:
+                        # 处理成本字段
+                        cost = row['成本']
+                        if pd.isna(cost) or cost == '':
+                            return Response({
+                                'detail': f'第{index + 1}行成本不能为空'
+                            }, status=status.HTTP_400_BAD_REQUEST)
+                        cost = float(cost)
+                        
+                        # 处理其他数值字段，空值或NaN都转为0
+                        def safe_convert_to_int(value):
+                            if pd.isna(value) or value == '':
+                                return 0
+                            return int(float(value))
+                        
+                        on_road = safe_convert_to_int(row.get('物流在途', 0))
+                        in_stock = safe_convert_to_int(row.get('当前在库', 0))
+                        been_order = safe_convert_to_int(row.get('已被订购', 0))
+                        sold = safe_convert_to_int(row.get('已售出', 0))
+                        
+                        # 验证数值是否为负数
+                        if any(x < 0 for x in [cost, on_road, in_stock, been_order, sold]):
+                            return Response({
+                                'detail': f'第{index + 1}行存在负数，所有数值必须大于等于0'
+                            }, status=status.HTTP_400_BAD_REQUEST)
+                            
+                    except (ValueError, TypeError) as e:
+                        return Response({
+                            'detail': f'第{index + 1}行数据格式错误：{str(e)}，请确保数值字段格式正确'
+                        }, status=status.HTTP_400_BAD_REQUEST)
                     
                     # 创建库存对象（但不保存到数据库）
                     inventory = models.Inventory(
-                        name=row['名称'],
+                        name=str(row['名称']).upper(),  # 将名称中的英文字母转为大写
                         brand=brand,
                         category=category,
-                        size=row['尺码'],
-                        color=row['颜色'],
-                        cost=row['成本'],
-                        on_road=row.get('物流在途', 0),
-                        in_stock=row.get('当前在库', 0),
-                        been_order=row.get('已被订购', 0),
-                        sold=row.get('已售出', 0)
+                        size=str(row['规格']),
+                        color=str(row['颜色']),
+                        cost=cost,
+                        on_road=on_road,
+                        in_stock=in_stock,
+                        been_order=been_order,
+                        sold=sold
                     )
                     inventory_objects.append(inventory)
                 

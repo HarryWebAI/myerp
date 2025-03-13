@@ -1,169 +1,439 @@
 <script setup>
-import MainBox from '@/components/MainBox.vue'
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, reactive, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import inventoryHttp from '@/api/inventoryHttp'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { ArrowLeft, Refresh, Document, Timer } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
 const receive_id = route.params.id
-let details = ref([])
+const receiveData = ref(null)
+const loading = ref(false)
+const editVisible = ref(false)
+const currentDetail = reactive({
+  id: null,
+  inventory: {},
+  quantity: 0,
+  oldQuantity: 0
+})
 
-// 添加编辑相关的响应式变量
-const editDialogVisible = ref(false)
-const editingDetail = ref(null)
-const newQuantity = ref(0)
+// 计算总数量
+const totalQuantity = computed(() => {
+  if (!receiveData.value?.details) return 0
+  return receiveData.value.details.reduce((sum, item) => sum + item.quantity, 0)
+})
 
-// 加载数据的方法
-const loadData = () => {
+// 格式化金额
+const formatPrice = (price) => {
+  if (!price) return '¥0.00'
+  return `¥${Number(price).toFixed(2)}`
+}
+
+// 格式化时间
+const formatTime = (time) => {
+  if (!time) return ''
+  const date = new Date(time)
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+}
+
+// 获取收货明细数据
+const fetchDetails = () => {
+  loading.value = true
   inventoryHttp.requestReceiveDetails(receive_id).then((result) => {
+    loading.value = false
     if (result.status == 200) {
-      details.value = result.data
+      receiveData.value = result.data
     } else {
       ElMessage.error('数据请求失败!')
     }
+  }).catch(() => {
+    loading.value = false
+    ElMessage.error('数据请求失败!')
+  })
+}
+
+// 返回列表页
+const goBack = () => {
+  router.push({ name: 'inventory_receive_list' })
+}
+
+// 打开编辑对话框
+const handleEdit = (row) => {
+  currentDetail.id = row.id
+  currentDetail.inventory = row.inventory
+  currentDetail.oldQuantity = row.quantity
+  currentDetail.quantity = row.quantity
+  editVisible.value = true
+}
+
+// 提交数量修改
+const handleSubmitEdit = () => {
+  if (currentDetail.quantity === currentDetail.oldQuantity) {
+    ElMessage.warning('数量未变更!')
+    return
+  }
+
+  if (currentDetail.quantity < 0) {
+    ElMessage.warning('数量不能为负数!')
+    return
+  }
+
+  inventoryHttp
+    .updateReceiveDetail(currentDetail.id, {
+      quantity: currentDetail.quantity,
+    })
+    .then((result) => {
+      if (result.status == 200) {
+        ElMessage.success('修改成功!')
+        editVisible.value = false
+        fetchDetails()
+      } else {
+        ElMessage.error(result.data.detail || '修改失败!')
+      }
+    })
+}
+
+// 删除明细
+const handleDelete = (row) => {
+  ElMessageBox.confirm('确定要删除该明细吗?', '警告', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning',
+  }).then(() => {
+    inventoryHttp.deleteReceiveDetail(row.id).then((result) => {
+      if (result.status == 200) {
+        ElMessage.success('删除成功!')
+        if (result.data.order_deleted) {
+          router.push({ name: 'inventory_receive_list' })
+        } else {
+          fetchDetails()
+        }
+      } else {
+        ElMessage.error(result.data.detail || '删除失败!')
+      }
+    })
   })
 }
 
 onMounted(() => {
-  loadData()
+  fetchDetails()
 })
-
-// 打开编辑对话框
-const handleEdit = (row) => {
-  editingDetail.value = row
-  newQuantity.value = row.quantity
-  editDialogVisible.value = true
-}
-
-// 保存修改
-const handleSave = () => {
-  if (newQuantity.value < 0 || !Number.isInteger(Number(newQuantity.value))) {
-    ElMessage.warning('请输入有效的数量')
-    return
-  }
-
-  // 如果数量为0，调用删除接口
-  if (newQuantity.value === 0) {
-    ElMessageBox.confirm(
-      `确认删除商品 "${editingDetail.value.inventory_name}" 的收货记录？`,
-      '删除确认',
-      {
-        confirmButtonText: '确认删除',
-        cancelButtonText: '取消',
-        type: 'warning',
-      }
-    ).then(() => {
-      inventoryHttp.deleteReceiveDetail(editingDetail.value.id)
-        .then(response => {
-          if (response.status === 200) {
-            ElMessage.success('收货记录删除成功')
-            editDialogVisible.value = false
-            // 检查返回数据中的order_deleted字段
-            const orderDeleted = response.data && response.data.order_deleted
-            if (orderDeleted) {
-              ElMessage.info('收货单已被删除，即将返回列表页面')
-              router.push({name:'inventory_receive_list'})
-            } else {
-              loadData() // 重新加载数据
-            }
-          } else {
-            ElMessage.error(response.data?.detail || '删除失败')
-          }
-        }).catch(error => {
-          ElMessage.error(error.response?.data?.detail || '删除失败')
-        })
-    }).catch(() => {
-      // 用户取消操作
-    })
-    return
-  }
-
-  // 数量大于0时的原有逻辑
-  inventoryHttp.updateReceiveDetail(editingDetail.value.id, {
-    quantity: newQuantity.value
-  }).then(response => {
-    if (response.status === 200) {
-      ElMessage.success('修改成功')
-      editDialogVisible.value = false
-      loadData() // 重新加载数据
-    } else {
-      ElMessage.error(response.data.detail || '修改失败')
-    }
-  }).catch(error => {
-    ElMessage.error(error.response?.data?.detail || '修改失败')
-  })
-}
 </script>
 
 <template>
-  <MainBox title="收货详情">
-    <el-card>
-      <el-table :data="details">
-        <el-table-column prop="inventory_name" label="名称"></el-table-column>
-        <el-table-column prop="category_name" label="种类"></el-table-column>
-        <el-table-column prop="quantity" label="收货数量"></el-table-column>
-        <el-table-column label="操作" width="120">
-          <template #default="scope">
-            <el-button
-              type="primary"
-              size="small"
-              @click="handleEdit(scope.row)"
-            >
-              修改数量
-            </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-card>
+  <div class="receive-detail" v-loading="loading">
+    <!-- 顶部导航栏 -->
+    <div class="nav-bar">
+      <div class="left">
+        <el-button @click="goBack" :icon="ArrowLeft" plain>返回列表</el-button>
+      </div>
+      <div class="center">
+        <h2>收货单详情</h2>
+      </div>
+      <div class="right">
+        <el-button @click="fetchDetails" :icon="Refresh" plain>刷新</el-button>
+      </div>
+    </div>
+
+    <div class="content" v-if="receiveData">
+      <!-- 基本信息卡片 -->
+      <div class="info-card">
+        <div class="info-header">
+          <el-tag size="large" type="primary">收货单号：{{ receiveData.id }}</el-tag>
+          <el-tag size="large" type="success">{{ receiveData.brand?.name }}</el-tag>
+        </div>
+        <div class="info-body">
+          <div class="info-item">
+            <i class="el-icon"><Document /></i>
+            <span class="label">收货人：</span>
+            <span class="value">{{ receiveData.user?.name }}</span>
+          </div>
+          <div class="info-item">
+            <i class="el-icon"><Timer /></i>
+            <span class="label">收货时间：</span>
+            <span class="value">{{ formatTime(receiveData.create_time) }}</span>
+          </div>
+        </div>
+        <div class="info-footer">
+          <div class="summary-item">
+            <span class="label">总数量：</span>
+            <span class="value highlight">{{ totalQuantity }}个</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 收货明细表格 -->
+      <div class="detail-card">
+        <div class="card-title">收货明细</div>
+        <el-table :data="receiveData.details" border stripe>
+          <el-table-column type="index" label="序号" width="60" align="center" />
+          <el-table-column label="商品信息" min-width="300">
+            <template #default="scope">
+              <div class="product-info">
+                <div class="product-name">{{ scope.row.inventory.name }}</div>
+                <div class="product-spec">
+                  <el-tag size="small">{{ scope.row.inventory.size }}</el-tag>
+                  <el-tag size="small" type="info">{{ scope.row.inventory.color }}</el-tag>
+                </div>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="数量" prop="quantity" width="100" align="center">
+            <template #default="scope">
+              <span class="quantity">{{ scope.row.quantity }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="单价" width="120" align="right">
+            <template #default="scope">
+              <span class="price">{{ formatPrice(scope.row.inventory.cost) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="小计" width="120" align="right">
+            <template #default="scope">
+              <span class="total-price">{{ formatPrice(scope.row.inventory.cost * scope.row.quantity) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="160" fixed="right">
+            <template #default="scope">
+              <el-button-group>
+                <el-button type="primary" size="small" @click="handleEdit(scope.row)">
+                  修改
+                </el-button>
+                <el-button type="danger" size="small" @click="handleDelete(scope.row)">
+                  删除
+                </el-button>
+              </el-button-group>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
+      <!-- 操作日志 -->
+      <div class="log-card">
+        <div class="card-title">操作日志</div>
+        <el-timeline>
+          <el-timeline-item
+            v-for="log in receiveData.logs"
+            :key="log.id"
+            :timestamp="formatTime(log.create_time)"
+            type="primary"
+          >
+            <div class="log-content">
+              <div class="log-header">
+                <el-tag size="small">{{ log.operator_name }}</el-tag>
+              </div>
+              <div class="log-body">
+                <pre>{{ log.content }}</pre>
+              </div>
+            </div>
+          </el-timeline-item>
+        </el-timeline>
+      </div>
+    </div>
 
     <!-- 编辑对话框 -->
-    <el-dialog
-      v-model="editDialogVisible"
-      title="修改收货数量"
-      width="500px"
-      :close-on-click-modal="false"
-    >
-      <el-form label-width="120px" class="custom-form">
-        <el-form-item label="商品名称：" class="custom-label">
-          {{ editingDetail?.inventory_name }}
+    <el-dialog v-model="editVisible" title="修改数量" width="400px" destroy-on-close>
+      <el-form label-width="100px">
+        <el-form-item label="商品名称">
+          <div class="dialog-product-info">
+            <div class="product-name">{{ currentDetail.inventory.name }}</div>
+            <div class="product-spec">
+              <el-tag size="small">{{ currentDetail.inventory.size }}</el-tag>
+              <el-tag size="small" type="info">{{ currentDetail.inventory.color }}</el-tag>
+            </div>
+          </div>
         </el-form-item>
-        <el-form-item label="原收货数量：" class="custom-label">
-          {{ editingDetail?.quantity }}
+        <el-form-item label="单价">
+          <span class="price">{{ formatPrice(currentDetail.inventory.cost) }}</span>
         </el-form-item>
-        <el-form-item label="修改后数量：" class="custom-label">
+        <el-form-item label="原数量">
+          <span>{{ currentDetail.oldQuantity }}</span>
+        </el-form-item>
+        <el-form-item label="新数量">
           <el-input-number
-            v-model="newQuantity"
+            v-model="currentDetail.quantity"
             :min="0"
+            :precision="0"
+            :step="1"
             controls-position="right"
           />
         </el-form-item>
+        <el-form-item label="变更后小计">
+          <span class="total-price">{{ formatPrice(currentDetail.quantity * currentDetail.inventory.cost) }}</span>
+        </el-form-item>
       </el-form>
       <template #footer>
-        <span class="dialog-footer">
-          <el-button @click="editDialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleSave">确定</el-button>
-        </span>
+        <el-button @click="editVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleSubmitEdit">确定</el-button>
       </template>
     </el-dialog>
-  </MainBox>
+  </div>
 </template>
 
 <style scoped>
-.dialog-footer {
+.receive-detail {
+  padding: 20px;
+  background-color: #f5f7fa;
+  min-height: 100vh;
+}
+
+.nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding: 0 20px;
+  height: 60px;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+}
+
+.nav-bar h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 500;
+  color: #303133;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.info-card {
+  background-color: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+}
+
+.info-header {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.info-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  margin-bottom: 20px;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.info-item .label {
+  color: #909399;
+}
+
+.info-item .value {
+  color: #303133;
+  font-weight: 500;
+}
+
+.info-footer {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #ebeef5;
 }
 
-.custom-form :deep(.custom-label) .el-form-item__label {
+.summary-item .label {
+  color: #909399;
+}
+
+.summary-item .value.highlight {
+  color: #409eff;
+  font-size: 18px;
   font-weight: bold;
-  font-size: 15px;
-  color: #2c3e50;
 }
 
-.custom-form :deep(.el-form-item__label)::after {
-  content: ' ';
+.detail-card, .log-card {
+  background-color: white;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+}
+
+.card-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: #303133;
+  margin-bottom: 20px;
+  padding-left: 10px;
+  border-left: 4px solid #409eff;
+}
+
+.product-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.product-name {
+  font-weight: 500;
+  color: #303133;
+}
+
+.product-spec {
+  display: flex;
+  gap: 8px;
+}
+
+.quantity {
+  font-weight: 500;
+  color: #303133;
+}
+
+.price {
+  color: #f56c6c;
+  font-weight: 500;
+}
+
+.total-price {
+  color: #f56c6c;
+  font-weight: bold;
+}
+
+.log-content {
+  padding: 12px;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+}
+
+.log-header {
+  margin-bottom: 8px;
+}
+
+.log-body pre {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: inherit;
+  color: #606266;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.dialog-product-info {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+:deep(.el-timeline-item__timestamp) {
+  color: #909399;
+  font-size: 13px;
+}
+
+:deep(.el-timeline-item__content) {
+  color: #303133;
 }
 </style>

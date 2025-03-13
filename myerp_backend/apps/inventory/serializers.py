@@ -66,9 +66,42 @@ class ReceiveListSerializer(serializers.ModelSerializer):
 
 
 class ReceiveDetailSerializer(serializers.ModelSerializer):
-    inventory_name = serializers.CharField(source='inventory.full_name', read_only=True)
-    category_name = serializers.CharField(source='inventory.category.name', read_only=True)
+    inventory = InventorySerializer(read_only=True)
     
     class Meta:
         model = models.ReceiveDetail
-        fields = ['id', 'inventory_name', 'category_name', 'quantity']
+        fields = '__all__'
+
+class ReceiveLogSerializer(serializers.ModelSerializer):
+    operator_name = serializers.CharField(source='operator.name', read_only=True)
+    
+    class Meta:
+        model = models.ReceiveLog
+        fields = ['id', 'content', 'operator_name', 'create_time']
+
+class ReceiveDetailFullSerializer(serializers.ModelSerializer):
+    details = ReceiveDetailSerializer(source='details.all', many=True, read_only=True)
+    logs = ReceiveLogSerializer(source='logs.all', many=True, read_only=True)
+    brand = BrandSerializer(read_only=True)
+    user = StaffSerializer(read_only=True)
+    
+    class Meta:
+        model = models.Receive
+        fields = ['id', 'brand', 'user', 'create_time', 'details', 'logs']
+
+class PurchaseLogSerializer(serializers.ModelSerializer):
+    operator_name = serializers.CharField(source='operator.name', read_only=True)
+    
+    class Meta:
+        model = models.PurchaseLog
+        fields = ['id', 'content', 'operator_name', 'create_time']
+
+class PurchaseDetailFullSerializer(serializers.ModelSerializer):
+    details = PurchaseDetailSerializer(source='details.all', many=True, read_only=True)
+    logs = PurchaseLogSerializer(source='logs.all', many=True, read_only=True)
+    brand = BrandSerializer(read_only=True)
+    user = StaffSerializer(read_only=True)
+    
+    class Meta:
+        model = models.Purchase
+        fields = ['id', 'brand', 'total_cost', 'user', 'create_time', 'details', 'logs']
