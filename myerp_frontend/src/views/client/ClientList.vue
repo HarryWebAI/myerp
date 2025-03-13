@@ -11,7 +11,9 @@
           </el-tabs>
         </div>
       </div>
-      <el-button type="primary" @click="showCreateDialog" :icon="Plus">创建客户</el-button>
+      <el-button type="primary" @click="showCreateDialog">
+        <el-icon><Plus /></el-icon>创建客户
+      </el-button>
     </div>
 
     <!-- 筛选表单 -->
@@ -40,8 +42,12 @@
           <el-input v-model="filterForm.telephone" placeholder="输入联系电话" style="width: 180px" prefix-icon="el-icon-phone" />
         </el-form-item>
         <el-form-item class="actions">
-          <el-button type="primary" @click="onSearch(true)" :icon="Search">搜索</el-button>
-          <el-button @click="onSearch(false)" :icon="Refresh">重置</el-button>
+          <el-button type="primary" @click="onSearch(true)">
+            <el-icon><Search /></el-icon>搜索
+          </el-button>
+          <el-button @click="onSearch(false)">
+            <el-icon><Refresh /></el-icon>重置
+          </el-button>
         </el-form-item>
       </el-form>
     </el-card>
@@ -124,8 +130,8 @@
                 link
                 size="small"
                 @click.stop="viewClientDetail(row.uid)"
-                :icon="View"
               >
+                <el-icon><ViewIcon /></el-icon>
                 查看详情
               </el-button>
             </template>
@@ -204,7 +210,7 @@
   </div>
 </template>
 
-<script>
+<script setup>
 import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -214,274 +220,242 @@ import timeFormatter from '@/utils/timeFormatter'
 import staffHttp from '@/api/staffHttp'
 import PaginationView from '@/components/PaginationView.vue'
 import { chineseNameRegExp, telphoneRegExp } from '@/utils/regExp'
+import { Plus, Search, Refresh, View as ViewIcon } from '@element-plus/icons-vue'
 
-export default {
-  name: 'ClientList',
-  components: {
-    PaginationView
-  },
+// 状态变量
+const authStore = useAuthStore()
+const router = useRouter()
+const loading = ref(false)
+const clientList = ref([])
+const createDialogVisible = ref(false)
+const submitting = ref(false)
+const createFormRef = ref(null)
+const activeTab = ref('overdue')
+const staffList = ref([])
 
-  setup() {
-    const authStore = useAuthStore()
-    const router = useRouter()
+// 分页数据
+const pagination = reactive({
+  page: 1,
+  total: 0
+})
 
-    // 状态变量
-    const loading = ref(false)
-    const clientList = ref([])
-    const createDialogVisible = ref(false)
-    const submitting = ref(false)
-    const createFormRef = ref(null)
-    const activeTab = ref('overdue')
-    const staffList = ref([])
+// 筛选表单数据
+const filterForm = reactive({
+  level: "",
+  name: '',
+  telephone: ''
+})
 
-    // 分页数据
-    const pagination = reactive({
-      page: 1,
-      total: 0
-    })
+// 计算属性
+const isBoss = computed(() => authStore.user && authStore.user.is_boss)
 
-    // 筛选表单数据
-    const filterForm = reactive({
-      level: "",
-      name: '',
-      telephone: ''
-    })
+// 监听页码变化，重新加载数据
+watch(
+  () => pagination.page,
+  () => {
+    if (activeTab.value === 'all') {
+      loadClientList(pagination.page, filterForm)
+    }
+  }
+)
 
-    // 计算属性
-    const isBoss = computed(() => authStore.user && authStore.user.is_boss)
+// 创建客户表单数据和规则
+const createForm = reactive({
+  name: '',
+  telephone: '',
+  address: '',
+  level: 1,
+  remark: '',
+  staff: ''
+})
 
-    // 监听页码变化，重新加载数据
-    watch(
-      () => pagination.page,
-      () => {
-        if (activeTab.value === 'all') {
-          loadClientList(pagination.page, filterForm)
-        }
-      }
-    )
+const createRules = {
+  name: [{ required: true, message: '请输入客户姓名', trigger: 'blur' }],
+  telephone: [{ required: true, message: '请输入联系电话', trigger: 'blur' }],
+  address: [{ required: true, message: '请输入详细住址', trigger: 'blur' }],
+  level: [{ required: true, message: '请选择客户级别', trigger: 'change' }],
+  staff: [{ required: true, message: '请选择所属员工', trigger: 'change' }]
+}
 
-    // 创建客户表单数据和规则
-    const createForm = reactive({
-      name: '',
-      telephone: '',
-      address: '',
-      level: 1,
-      remark: '',
-      staff: ''
-    })
+// 方法
+const loadClientList = async (page = 1, params = {}) => {
+  loading.value = true
+  try {
+    const response = await clientHttp.getClientList(page, params)
+    if (response.status === 200) {
+      clientList.value = response.data.results
+      pagination.total = response.data.count
+    } else {
+      ElMessage.error('获取客户列表失败')
+    }
+  } catch (error) {
+    ElMessage.error('获取客户列表失败')
+    console.error('获取客户列表失败:', error)
+  } finally {
+    loading.value = false
+  }
+}
 
-    const createRules = {
-      name: [{ required: true, message: '请输入客户姓名', trigger: 'blur' }],
-      telephone: [{ required: true, message: '请输入联系电话', trigger: 'blur' }],
-      address: [{ required: true, message: '请输入详细住址', trigger: 'blur' }],
-      level: [{ required: true, message: '请选择客户级别', trigger: 'change' }],
-      staff: [{ required: true, message: '请选择所属员工', trigger: 'change' }]
+const loadOverdueClients = async (params = {}) => {
+  loading.value = true
+  try {
+    const response = await clientHttp.getOverdueClients(params)
+    if (response.status === 200) {
+      clientList.value = response.data
+    } else {
+      ElMessage.error('获取需要跟进的客户列表失败')
+    }
+  } catch (error) {
+    ElMessage.error('获取需要跟进的客户列表失败')
+    console.error('获取需要跟进的客户列表失败:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+const handleTabClick = () => {
+  // 切换标签页时，保留筛选条件
+  if (activeTab.value === 'all') {
+    loadClientList(1, filterForm)
+  } else if (activeTab.value === 'overdue') {
+    loadOverdueClients(filterForm)
+  }
+}
+
+// 搜索功能
+const onSearch = (action) => {
+  if (action) {
+    // 执行搜索
+    // 转换level参数：空字符串表示不筛选级别
+    const params = { ...filterForm };
+    if (params.level === "") {
+      params.level = null;
     }
 
-    // 方法
-    const loadClientList = async (page = 1, params = {}) => {
-      loading.value = true
-      try {
-        const response = await clientHttp.getClientList(page, params)
-        if (response.status === 200) {
-          clientList.value = response.data.results
-          pagination.total = response.data.count
-        } else {
-          ElMessage.error('获取客户列表失败')
-        }
-      } catch (error) {
-        ElMessage.error('获取客户列表失败')
-        console.error('获取客户列表失败:', error)
-      } finally {
-        loading.value = false
-      }
+    if (activeTab.value === 'all') {
+      loadClientList(1, params)
+    } else {
+      loadOverdueClients(params)
     }
+  } else {
+    // 重置筛选条件
+    filterForm.level = ""
+    filterForm.name = ''
+    filterForm.telephone = ''
 
-    const loadOverdueClients = async (params = {}) => {
-      loading.value = true
-      try {
-        const response = await clientHttp.getOverdueClients(params)
-        if (response.status === 200) {
-          clientList.value = response.data
-        } else {
-          ElMessage.error('获取需要跟进的客户列表失败')
-        }
-      } catch (error) {
-        ElMessage.error('获取需要跟进的客户列表失败')
-        console.error('获取需要跟进的客户列表失败:', error)
-      } finally {
-        loading.value = false
-      }
-    }
-
-    const handleTabClick = () => {
-      // 切换标签页时，保留筛选条件
-      if (activeTab.value === 'all') {
-        loadClientList(1, filterForm)
-      } else if (activeTab.value === 'overdue') {
-        loadOverdueClients(filterForm)
-      }
-    }
-
-    // 搜索功能
-    const onSearch = (action) => {
-      if (action) {
-        // 执行搜索
-        // 转换level参数：空字符串表示不筛选级别
-        const params = { ...filterForm };
-        if (params.level === "") {
-          params.level = null;
-        }
-
-        if (activeTab.value === 'all') {
-          loadClientList(1, params)
-        } else {
-          loadOverdueClients(params)
-        }
-      } else {
-        // 重置筛选条件
-        filterForm.level = ""
-        filterForm.name = ''
-        filterForm.telephone = ''
-
-        // 加载未筛选的数据
-        if (activeTab.value === 'all') {
-          loadClientList(1)
-        } else {
-          loadOverdueClients()
-        }
-      }
-    }
-
-    const showCreateDialog = () => {
-      createDialogVisible.value = true
-      // 重置表单
-      if (createFormRef.value) {
-        createFormRef.value.resetFields()
-      }
-    }
-
-    const submitCreateForm = async () => {
-      if (!createFormRef.value) return
-
-      await createFormRef.value.validate(async (valid) => {
-        if (!valid) return
-
-        // 使用正则表达式进行验证
-        if (!chineseNameRegExp.test(createForm.name)) {
-          ElMessage.error('客户姓名格式错误,请输入2-15个汉字(可包含·•符号)')
-          return
-        }
-
-        if (!telphoneRegExp.test(createForm.telephone)) {
-          ElMessage.error('手机号码格式错误,请输入11位数字的手机号')
-          return
-        }
-
-        submitting.value = true
-        try {
-          const response = await clientHttp.createClient(createForm)
-          if (response.status === 201 || response.status === 200) {
-            ElMessage.success('创建客户成功')
-            createDialogVisible.value = false
-            loadClientList() // 重新加载客户列表
-          } else {
-            ElMessage.error(response.data.detail || '创建客户失败')
-          }
-        } catch (error) {
-          ElMessage.error('创建客户失败')
-          console.error('创建客户失败:', error)
-        } finally {
-          submitting.value = false
-        }
-      })
-    }
-
-    const viewClientDetail = (uid) => {
-      router.push({ path: `/client/detail/${uid}` })
-    }
-
-    const handleRowClick = (row) => {
-      viewClientDetail(row.uid)
-    }
-
-    const formatDate = (datetime) => {
-      return datetime ? timeFormatter.stringFromDate(datetime) : '--'
-    }
-
-    const getLevelTagType = (level) => {
-      const types = {
-        0: 'success',
-        1: 'danger',
-        2: 'warning',
-        3: 'info',
-        4: 'info',
-        5: 'info'
-      }
-      return types[level] || 'info'
-    }
-
-    const getLevelLabel = (level) => {
-      const labels = {
-        0: '已成交',
-        1: '持续跟进',
-        2: '潜在客户',
-        3: '暂时观望',
-        4: '希望渺茫',
-        5: '已流失'
-      }
-      return labels[level] || '未知'
-    }
-
-    // 加载数据
-    onMounted(() => {
-      // 默认加载需要跟进的客户列表
+    // 加载未筛选的数据
+    if (activeTab.value === 'all') {
+      loadClientList(1)
+    } else {
       loadOverdueClients()
-
-      // 加载员工列表，仅当用户是老板时
-      if (isBoss.value) {
-        // 使用staffHttp获取员工列表
-        const loadStaffList = async () => {
-          try {
-            const response = await staffHttp.getStaffList()
-            if (response.status === 200) {
-              staffList.value = response.data
-            } else {
-              console.error('获取员工列表失败')
-            }
-          } catch (error) {
-            console.error('获取员工列表失败:', error)
-          }
-        }
-        loadStaffList()
-      }
-    })
-
-    return {
-      loading,
-      clientList,
-      createDialogVisible,
-      createForm,
-      createRules,
-      createFormRef,
-      submitting,
-      activeTab,
-      staffList,
-      filterForm,
-      isBoss,
-      pagination,
-      showCreateDialog,
-      submitCreateForm,
-      viewClientDetail,
-      handleRowClick,
-      formatDate,
-      getLevelTagType,
-      getLevelLabel,
-      handleTabClick,
-      onSearch
     }
   }
 }
+
+const showCreateDialog = () => {
+  createDialogVisible.value = true
+  // 重置表单
+  if (createFormRef.value) {
+    createFormRef.value.resetFields()
+  }
+}
+
+const submitCreateForm = async () => {
+  if (!createFormRef.value) return
+
+  await createFormRef.value.validate(async (valid) => {
+    if (!valid) return
+
+    // 使用正则表达式进行验证
+    if (!chineseNameRegExp.test(createForm.name)) {
+      ElMessage.error('客户姓名格式错误,请输入2-15个汉字(可包含·•符号)')
+      return
+    }
+
+    if (!telphoneRegExp.test(createForm.telephone)) {
+      ElMessage.error('手机号码格式错误,请输入11位数字的手机号')
+      return
+    }
+
+    submitting.value = true
+    try {
+      const response = await clientHttp.createClient(createForm)
+      if (response.status === 201 || response.status === 200) {
+        ElMessage.success('创建客户成功')
+        createDialogVisible.value = false
+        loadClientList() // 重新加载客户列表
+      } else {
+        ElMessage.error(response.data.detail || '创建客户失败')
+      }
+    } catch (error) {
+      ElMessage.error('创建客户失败')
+      console.error('创建客户失败:', error)
+    } finally {
+      submitting.value = false
+    }
+  })
+}
+
+const viewClientDetail = (uid) => {
+  router.push({ path: `/client/detail/${uid}` })
+}
+
+const handleRowClick = (row) => {
+  viewClientDetail(row.uid)
+}
+
+const formatDate = (datetime) => {
+  return datetime ? timeFormatter.stringFromDate(datetime) : '--'
+}
+
+const getLevelTagType = (level) => {
+  const types = {
+    0: 'success',
+    1: 'danger',
+    2: 'warning',
+    3: 'info',
+    4: 'info',
+    5: 'info'
+  }
+  return types[level] || 'info'
+}
+
+const getLevelLabel = (level) => {
+  const labels = {
+    0: '已成交',
+    1: '持续跟进',
+    2: '潜在客户',
+    3: '暂时观望',
+    4: '希望渺茫',
+    5: '已流失'
+  }
+  return labels[level] || '未知'
+}
+
+// 加载员工列表的函数
+const loadStaffList = async () => {
+  try {
+    const response = await staffHttp.getStaffList()
+    if (response.status === 200) {
+      staffList.value = response.data
+    } else {
+      console.error('获取员工列表失败')
+    }
+  } catch (error) {
+    console.error('获取员工列表失败:', error)
+  }
+}
+
+// 加载数据
+onMounted(() => {
+  // 默认加载需要跟进的客户列表
+  loadOverdueClients()
+
+  // 加载员工列表，仅当用户是老板时
+  if (isBoss.value) {
+    loadStaffList()
+  }
+})
 </script>
 
 <style scoped>

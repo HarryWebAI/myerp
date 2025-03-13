@@ -57,7 +57,6 @@ const paymentStatusOptions = [
 const getOrders = (page, params) => {
   orderHttp.getOrderList(page, params).then((result) => {
     if (result.status == 200) {
-      console.log(result)
       orders.value = result.data.results
       pagination.total = result.data.count
       totalAmount.value = result.data.monthly_total_amount || 0
@@ -667,7 +666,7 @@ const paymentFormRules = {
 .pagination-container {
   margin-top: 20px;
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
 }
 
 /* 添加表单提示样式 */

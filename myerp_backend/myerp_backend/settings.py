@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     'apps.inventory',  # 库存管理
     'apps.client',  # 客户管理
     'apps.order',  # 订单管理
+    'apps.home',  # 首页管理
 ]
 
 MIDDLEWARE = [
@@ -101,3 +102,18 @@ REST_FRAMEWORK = {
 }
 
 CORS_ALLOW_ALL_ORIGINS = True
+
+# 缓存
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": env.str('CACHE_URL', "redis://127.0.0.1:6379/4"),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            "SOCKET_CONNECT_TIMEOUT": 5,
+            "SOCKET_TIMEOUT": 5,
+            "IGNORE_EXCEPTIONS": True,  # 忽略Redis连接异常
+        },
+        "KEY_PREFIX": "myerp"
+    }
+}
