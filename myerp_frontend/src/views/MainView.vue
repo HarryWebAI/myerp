@@ -114,7 +114,9 @@ const resetPassword = () => {
       <el-sub-menu index="3" v-if="authStore.hasPermission('system_management')">
         <template #title>
           <el-icon>
-            <el-icon><Tools /></el-icon>
+            <el-icon>
+              <Tools />
+            </el-icon>
           </el-icon>
           <span>系统管理</span>
         </template>
@@ -126,11 +128,15 @@ const resetPassword = () => {
         </el-menu-item>
         <!-- 员工管理只对老板显示 -->
         <el-menu-item index="3-2" :route="{ name: 'staff' }" v-if="authStore.hasPermission('staff_management')">
-          <el-icon><Avatar /></el-icon>
+          <el-icon>
+            <Avatar />
+          </el-icon>
           <span>员工管理</span>
         </el-menu-item>
         <el-menu-item index="3-3" :route="{ name: 'installer' }">
-          <el-icon><Van /></el-icon>
+          <el-icon>
+            <Van />
+          </el-icon>
           <span>安装师傅</span>
         </el-menu-item>
       </el-sub-menu>
@@ -144,26 +150,30 @@ const resetPassword = () => {
           <span>库存管理</span>
         </template>
         <!-- 只对老板显示的菜单项 -->
-        <el-menu-item index="4-1" :route="{ name: 'inventory_purchase' }" v-if="authStore.hasPermission('inventory_all')">
+        <el-menu-item index="4-1" :route="{ name: 'inventory_purchase' }"
+          v-if="authStore.hasPermission('inventory_all')">
           <el-icon>
             <ShoppingCart />
           </el-icon>
           <span>申请发货</span>
         </el-menu-item>
-        <el-menu-item index="4-2" :route="{ name: 'inventory_purchase_list' }" v-if="authStore.hasPermission('inventory_all')">
+        <el-menu-item index="4-2" :route="{ name: 'inventory_purchase_list' }"
+          v-if="authStore.hasPermission('inventory_all')">
           <el-icon>
             <List />
           </el-icon>
           <span>发货记录</span>
         </el-menu-item>
         <!-- 对老板和仓库管理员都显示的菜单项 -->
-        <el-menu-item index="4-3" :route="{ name: 'inventory_receive' }" v-if="authStore.hasPermission('inventory_receive')">
+        <el-menu-item index="4-3" :route="{ name: 'inventory_receive' }"
+          v-if="authStore.hasPermission('inventory_receive')">
           <el-icon>
             <ShoppingCartFull />
           </el-icon>
           <span>收货入库</span>
         </el-menu-item>
-        <el-menu-item index="4-4" :route="{ name: 'inventory_receive_list' }" v-if="authStore.hasPermission('inventory_receive')">
+        <el-menu-item index="4-4" :route="{ name: 'inventory_receive_list' }"
+          v-if="authStore.hasPermission('inventory_receive')">
           <el-icon>
             <Checked />
           </el-icon>
@@ -187,7 +197,9 @@ const resetPassword = () => {
       <!-- 订单管理菜单 - 只对老板和门店经理显示 -->
       <el-sub-menu index="5" v-if="authStore.hasPermission('order_management')">
         <template #title>
-          <el-icon><Document /></el-icon>
+          <el-icon>
+            <Document />
+          </el-icon>
           <span>订单管理</span>
         </template>
         <el-menu-item index="5-1" :route="{ name: 'order_create' }">
@@ -254,6 +266,16 @@ const resetPassword = () => {
 
       <!-- 主体内容 -->
       <el-main><router-view></router-view></el-main>
+      <el-footer>
+        <div class="copyright-container">
+          <div class="copyright-line">
+            <span class="copyright-text">版权所有 © 2025</span>
+            <span class="author-name">HarryWebAI(刘浩宇)</span>
+            <span class="copyright-text">保留所有权利</span>
+          </div>
+          <div class="copyright-decoration"></div>
+        </div>
+      </el-footer>
     </el-container>
   </el-container>
 
@@ -292,5 +314,49 @@ const resetPassword = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+/* 版权声明样式 */
+.copyright-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 15px 0;
+}
+
+.copyright-line {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.copyright-text {
+  color: #909399;
+  font-size: 13px;
+}
+
+.author-name {
+  color: #409EFF;
+  font-weight: bold;
+  font-size: 16px;
+  letter-spacing: 1px;
+  padding: 0 5px;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.author-name:hover {
+  color: #66b1ff;
+  transform: scale(1.05);
+  text-shadow: 0 0 8px rgba(64, 158, 255, 0.4);
+}
+
+.copyright-decoration {
+  width: 100px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #409EFF, transparent);
+  margin: 5px 0;
 }
 </style>

@@ -261,7 +261,7 @@ const formatCurrency = (value) => {
     <el-descriptions :column="1" border>
       <el-descriptions-item label="姓名">{{ detailInstallerData.name }}</el-descriptions-item>
       <el-descriptions-item label="联系电话">{{ detailInstallerData.telephone }}</el-descriptions-item>
-      <el-descriptions-item label="本月安装费">{{ formatCurrency(detailInstallerData.current_month_installation_fee) }}</el-descriptions-item>
+      <el-descriptions-item label="上月安装费">{{ formatCurrency(detailInstallerData.current_month_installation_fee) }}</el-descriptions-item>
     </el-descriptions>
 
     <template #footer>

@@ -470,12 +470,19 @@ class InstallerViewSet(viewsets.mixins.CreateModelMixin,viewsets.mixins.UpdateMo
         current_year = now.year
         current_month = now.month
         
+        # 处理月份边界情况：如果是1月，则查询上一年的12月
+        query_year = current_year
+        query_month = current_month - 1
+        if query_month == 0:
+            query_month = 12
+            query_year = current_year - 1
+        
         # 计算当月安装费总和
         from django.db.models import Sum
         current_month_installation_fee = Order.objects.filter(
             installer=instance,
-            installation_time__year=current_year,
-            installation_time__month=current_month
+            installation_time__year=query_year,
+            installation_time__month=query_month
         ).aggregate(total=Sum('installation_fee'))['total'] or 0
         
         data['current_month_installation_fee'] = current_month_installation_fee
