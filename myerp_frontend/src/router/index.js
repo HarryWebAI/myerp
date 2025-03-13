@@ -4,7 +4,7 @@ import { ElMessage } from 'element-plus'
 import MainView from '@/views/MainView.vue'
 import LoginView from '@/views/LoginView.vue'
 import HomeView from '@/views/home/HomeView.vue'
-import BrandAndCategoryView from '@/views/brandAndCategory/BrandAndCategoryView.vue'
+import BrandAndCategoryView from '@/views/system/BrandAndCategoryView.vue'
 import InventoryList from '@/views/inventory/InventoryList.vue'
 import InventoryPurchase from '@/views/inventory/InventoryPurchase.vue'
 import PurchaseList from '@/views/inventory/PurchaseList.vue'
@@ -17,6 +17,8 @@ import ClientDetail from '@/views/client/ClientDetail.vue'
 import CreateOrder from '@/views/order/CreateOrder.vue'
 import OrderList from '@/views/order/OrderList.vue'
 import InventoryExcel from '@/views/inventory/InventoryExcel.vue'
+import InstallerView from '@/views/system/InstallerView.vue'
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -31,9 +33,19 @@ const router = createRouter({
           component: HomeView,
         },
         {
-          path: 'brandandcategory',
-          name: 'brandandcategory',
-          component: BrandAndCategoryView,
+          path: 'system',
+          children: [
+            {
+              path: 'brandandcategory',
+              name: 'brandandcategory',
+              component: BrandAndCategoryView,
+            },
+            {
+              path: 'installer',
+              name: 'installer',
+              component: InstallerView,
+            }
+          ],
         },
         {
           path: 'inventory',

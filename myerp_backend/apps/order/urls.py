@@ -11,7 +11,7 @@ router.register('order-details', views.OrderDetailViewSet, basename='order_detai
 router.register('operation-logs', views.OperationLogViewSet, basename='operation_logs')  # 操作日志
 router.register('balance-payments', views.BalancePaymentViewSet, basename='balance_payments')  # 尾款支付
 router.register('order-install', views.OrderInstallViewSet, basename='order_install')  # 订单出库
-router.register('installers', views.InstallerViewSet, basename='installers')  # 安装师傅列表
+router.register('installer', views.InstallerViewSet, basename='installer')  # 安装师傅列表
 
 urlpatterns = [
     path('order/create/', views.CreateOrderView.as_view(), name='order_create'),

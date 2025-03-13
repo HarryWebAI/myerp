@@ -1,7 +1,7 @@
 <script setup>
 import MainBox from '@/components/MainBox.vue'
 import FormDialog from '@/components/FormDialog.vue'
-import brandAndCategoryHttp from '@/api/brandAndCategoryHttp'
+import systemHttp from '@/api/systemHttp'
 import { ref, onMounted, reactive } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
@@ -10,8 +10,8 @@ let brands = ref([])
 let categories = ref([])
 
 onMounted(() => {
-  let brands_result = brandAndCategoryHttp.requesetBrandData()
-  let categories_result = brandAndCategoryHttp.requesetCategoryData()
+  let brands_result = systemHttp.requesetBrandData()
+  let categories_result = systemHttp.requesetCategoryData()
   brands_result.then((result) => {
     if (result.status == 200) {
       brands.value = result.data
@@ -49,7 +49,7 @@ const brandFormRules = reactive({
 const editBrand = () => {
   brandForm.value.validate((valid, fields) => {
     if (valid) {
-      brandAndCategoryHttp.editData('brand', brandFormData).then((result) => {
+      systemHttp.editData('brand', brandFormData).then((result) => {
         if (result.status == 200) {
           let index = brands.value.findIndex((brand) => brand.id === result.data.id)
           brands.value.splice(index, 1, result.data)
@@ -85,7 +85,7 @@ const categoryFormRules = reactive({
 const editCategory = () => {
   categoryForm.value.validate((valid, fields) => {
     if (valid) {
-      brandAndCategoryHttp.editData('category', categoryFormData).then((result) => {
+      systemHttp.editData('category', categoryFormData).then((result) => {
         if (result.status == 200) {
           let index = categories.value.findIndex((category) => category.id === result.data.id)
           categories.value.splice(index, 1, result.data)
@@ -125,7 +125,7 @@ const onDelete = (model, id) => {
     type: 'warning',
   })
     .then(() => {
-      brandAndCategoryHttp.deleteData(model, id).then((result) => {
+      systemHttp.deleteData(model, id).then((result) => {
         if (result.status == 204) {
           ElMessage.success('成功删除!')
           setTimeout(() => {
@@ -150,7 +150,7 @@ let addBrandFormData = reactive({
 const addBrandForm = ref()
 // 规则直接采用上面定义好的
 const createBrand = () => {
-  brandAndCategoryHttp.createData('brand', addBrandFormData).then((result) => {
+  systemHttp.createData('brand', addBrandFormData).then((result) => {
     if (result.status == 201) {
       brands.value.push(result.data)
       addBrandFormVisable.value = false
@@ -168,7 +168,7 @@ let addCategoryFormData = reactive({
 })
 const addCategoryForm = ref()
 const createCategory = () => {
-  brandAndCategoryHttp.createData('category', addCategoryFormData).then((result) => {
+  systemHttp.createData('category', addCategoryFormData).then((result) => {
     if (result.status == 201) {
       categories.value.push(result.data)
       addCategoryFormVisable.value = false

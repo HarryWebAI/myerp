@@ -92,73 +92,107 @@ const resetPassword = () => {
 <template>
   <el-container class="main-container">
     <!-- 导航部分 -->
-    <el-menu
-      class="side-bar"
-      text-color="#fff"
-      active-text-color="#ffd04b"
-      background-color="#2C3E50"
-      default-active="1"
-      :collapse="isCollapse"
-      :router="true"
-    >
+    <el-menu class="side-bar" text-color="#fff" active-text-color="#ffd04b" background-color="#2C3E50"
+      default-active="1" :collapse="isCollapse" :router="true">
       <!-- logo -->
       <el-menu-item index="1" class="brand" :route="{ name: 'home' }">
-        <el-icon><HomeFilled /></el-icon>
+        <el-icon>
+          <HomeFilled />
+        </el-icon>
         <span v-show="!isCollapse">myerp</span>
       </el-menu-item>
 
-      <el-menu-item index="2" :route="{ name: 'brandandcategory' }">
-        <el-icon><Menu /></el-icon>
-        <span>品牌种类</span>
-      </el-menu-item>
 
-      <el-menu-item index="3" :route="{ name: 'client_list' }">
-        <el-icon><User /></el-icon>
+      <el-menu-item index="2" :route="{ name: 'client_list' }">
+        <el-icon>
+          <User />
+        </el-icon>
         <span>客户管理</span>
       </el-menu-item>
 
+      <el-sub-menu index="3">
+        <template #title>
+          <el-icon>
+            <el-icon><Tools /></el-icon>
+          </el-icon>
+          <span>系统管理</span>
+        </template>
+        <el-menu-item index="3-1" :route="{ name: 'brandandcategory' }">
+          <el-icon>
+            <Menu />
+          </el-icon>
+          <span>品牌种类</span>
+        </el-menu-item>
+        <el-menu-item index="3-2">
+          <el-icon><Avatar /></el-icon>
+          <span>销售人员</span>
+        </el-menu-item>
+        <el-menu-item index="3-3" :route="{ name: 'installer' }">
+          <el-icon><Van /></el-icon>
+          <span>安装师傅</span>
+        </el-menu-item>
+      </el-sub-menu>
+
       <el-sub-menu index="4">
         <template #title>
-          <el-icon><Grid /></el-icon>
+          <el-icon>
+            <Grid />
+          </el-icon>
           <span>库存管理</span>
         </template>
         <el-menu-item index="4-1" :route="{ name: 'inventory_purchase' }">
-          <el-icon><ShoppingCart /></el-icon>
+          <el-icon>
+            <ShoppingCart />
+          </el-icon>
           <span>申请发货</span>
         </el-menu-item>
         <el-menu-item index="4-2" :route="{ name: 'inventory_purchase_list' }">
-          <el-icon><List /></el-icon>
+          <el-icon>
+            <List />
+          </el-icon>
           <span>发货记录</span>
         </el-menu-item>
         <el-menu-item index="4-3" :route="{ name: 'inventory_receive' }">
-          <el-icon><ShoppingCartFull /></el-icon>
+          <el-icon>
+            <ShoppingCartFull />
+          </el-icon>
           <span>收货入库</span>
         </el-menu-item>
         <el-menu-item index="4-4" :route="{ name: 'inventory_receive_list' }">
-          <el-icon><Checked /></el-icon>
+          <el-icon>
+            <Checked />
+          </el-icon>
           <span>收货记录</span>
         </el-menu-item>
         <el-menu-item index="4-5" :route="{ name: 'inventory_list' }">
-          <el-icon><Tickets /></el-icon>
+          <el-icon>
+            <Tickets />
+          </el-icon>
           <span>库存列表</span>
         </el-menu-item>
         <el-menu-item index="4-6" :route="{ name: 'inventory_excel' }">
-          <el-icon><DCaret /></el-icon>
+          <el-icon>
+            <DCaret />
+          </el-icon>
           <span>盘点备份</span>
         </el-menu-item>
       </el-sub-menu>
 
       <el-sub-menu index="5">
         <template #title>
-          <el-icon><Money /></el-icon>
+          <el-icon><Document /></el-icon>
           <span>订单管理</span>
         </template>
         <el-menu-item index="5-1" :route="{ name: 'order_create' }">
-          <el-icon><CirclePlus /></el-icon>
+          <el-icon>
+            <CirclePlus />
+          </el-icon>
           <span>创建订单</span>
         </el-menu-item>
         <el-menu-item index="5-2" :route="{ name: 'order_list' }">
-          <el-icon><List /></el-icon>
+          <el-icon>
+            <List />
+          </el-icon>
           <span>订单列表</span>
         </el-menu-item>
       </el-sub-menu>
@@ -171,10 +205,14 @@ const resetPassword = () => {
         <el-tooltip content="展开/收起" placement="right" effect="light">
           <div>
             <el-button @click="toggleAside" v-show="!isCollapse">
-              <el-icon><Fold /></el-icon>
+              <el-icon>
+                <Fold />
+              </el-icon>
             </el-button>
             <el-button @click="toggleAside" v-show="isCollapse">
-              <el-icon><Expand /></el-icon>
+              <el-icon>
+                <Expand />
+              </el-icon>
             </el-button>
           </div>
         </el-tooltip>
@@ -182,17 +220,23 @@ const resetPassword = () => {
         <div v-if="authStore.isLogined">
           <el-dropdown>
             <el-button>
-              <el-icon><UserFilled /></el-icon>
+              <el-icon>
+                <UserFilled />
+              </el-icon>
               <span>&nbsp;&nbsp;&nbsp;{{ authStore.user.name }}</span>
             </el-button>
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item @click="toggleResetPasswordForm()">
-                  <el-icon><Refresh /></el-icon>
+                  <el-icon>
+                    <Refresh />
+                  </el-icon>
                   <span>修改密码</span>
                 </el-dropdown-item>
                 <el-dropdown-item @click="logout">
-                  <el-icon><Close /></el-icon>
+                  <el-icon>
+                    <Close />
+                  </el-icon>
                   <span>退出登录</span>
                 </el-dropdown-item>
               </el-dropdown-menu>
@@ -208,12 +252,7 @@ const resetPassword = () => {
 
   <!-- 表单 -->
   <FormDialog v-model="dialogVisible" title="修改密码" @submit="resetPassword">
-    <el-form
-      :model="resetPasswordFormData"
-      :rules="resetPasswordFormRules"
-      ref="resetPasswordForm"
-      :label-width="80"
-    >
+    <el-form :model="resetPasswordFormData" :rules="resetPasswordFormRules" ref="resetPasswordForm" :label-width="80">
       <el-form-item label="旧密码" prop="old_password">
         <el-input type="password" v-model="resetPasswordFormData.old_password" />
       </el-form-item>
@@ -232,12 +271,14 @@ const resetPassword = () => {
   background-color: #fdfdfd;
   height: 100vh;
 }
+
 .brand {
   height: 80px;
   font-size: large;
   font-weight: bold;
   background-color: #233241;
 }
+
 .header {
   height: 80px;
   background-color: #fff;

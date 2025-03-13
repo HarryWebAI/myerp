@@ -4,7 +4,7 @@ const http = new Http()
 
 // 获取员工列表
 const getStaffList = () => {
-  const path = '/staff/'
+  const path = '/staff/allstaff/'
   return http.get(path)
 }
 

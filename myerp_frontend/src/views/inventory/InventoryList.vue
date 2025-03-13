@@ -3,7 +3,7 @@ import MainBox from '@/components/MainBox.vue'
 import FormDialog from '@/components/FormDialog.vue'
 import PaginationView from '@/components/PaginationView.vue'
 import { onMounted, reactive, ref, watch } from 'vue'
-import brandAndCategoryHttp from '@/api/brandAndCategoryHttp'
+import brandAndCategoryHttp from '@/api/systemHttp'
 import { ElMessage } from 'element-plus'
 import inventoryHttp from '@/api/inventoryHttp'
 

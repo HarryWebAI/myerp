@@ -4,7 +4,8 @@ from rest_framework.response import Response
 from rest_framework import status, viewsets, filters
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
-from django.db.models import F, Q, Sum
+from django.db.models import F, Q, Sum, Count
+from django.db.models.functions import TruncMonth
 from decimal import Decimal
 import datetime
 
@@ -453,3 +454,29 @@ class InstallerViewSet(viewsets.ModelViewSet):
     """
     queryset = Installer.objects.all()
     serializer_class = serializers.InstallerSerializer
+
+    # 重写详情函数, 该接口不只返回安装工人的姓名和电话,还有其本月安装费
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        
+        # 获取基础数据
+        data = serializer.data
+        
+        # 获取当前年月
+        import datetime
+        now = datetime.datetime.now()
+        current_year = now.year
+        current_month = now.month
+        
+        # 计算当月安装费总和
+        from django.db.models import Sum
+        current_month_installation_fee = Order.objects.filter(
+            installer=instance,
+            installation_time__year=current_year,
+            installation_time__month=current_month
+        ).aggregate(total=Sum('installation_fee'))['total'] or 0
+        
+        data['current_month_installation_fee'] = current_month_installation_fee
+        
+        return Response(data)

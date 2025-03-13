@@ -7,7 +7,7 @@ import { useRouter } from 'vue-router';
 import orderHttp from '@/api/orderHttp';
 import clientHttp from '@/api/clientHttp';
 import staffHttp from '@/api/staffHttp';
-import brandAndCategoryHttp from '@/api/brandAndCategoryHttp';
+import brandAndCategoryHttp from '@/api/systemHttp';
 import inventoryHttp from '@/api/inventoryHttp';
 import { Plus } from '@element-plus/icons-vue';
 import { chineseNameRegExp, telphoneRegExp } from '@/utils/regExp';

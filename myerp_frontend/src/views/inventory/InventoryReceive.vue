@@ -3,7 +3,7 @@ import MainBox from '@/components/MainBox.vue'
 import FormDialog from '@/components/FormDialog.vue'
 import { ref, reactive, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import brandAndCategoryHttp from '@/api/brandAndCategoryHttp'
+import brandAndCategoryHttp from '@/api/systemHttp'
 import inventoryHttp from '@/api/inventoryHttp'
 import { ElMessage } from 'element-plus'
 
