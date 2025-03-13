@@ -75,7 +75,7 @@ const showDetail = (id) => {
         </el-table-column>
         <el-table-column label="操作" width="100" align="center">
           <template #default="scope">
-            <el-button @click="showDetail(scope.row.id)">
+            <el-button type="primary" @click="showDetail(scope.row.id)">
               <span>查看详情</span>
             </el-button>
           </template>

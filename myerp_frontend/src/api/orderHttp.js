@@ -43,11 +43,18 @@ const orderInstall = (data, id) => {
   return http.put(path, data)
 }
 
+// 一键作废订单
+const abandonOrder = (data) => {
+  const path = '/order/abandon/'
+  return http.post(path, data)
+}
+
 export default {
   createOrder,
   getOrderList,
   getOrderDetail,
   getOrderDetails,
   payBalance,
-  orderInstall
+  orderInstall,
+  abandonOrder
 }

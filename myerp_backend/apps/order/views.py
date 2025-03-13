@@ -480,3 +480,68 @@ class InstallerViewSet(viewsets.ModelViewSet):
         data['current_month_installation_fee'] = current_month_installation_fee
         
         return Response(data)
+
+class AbandonOrderViewSet(APIView):
+    """
+    订单作废接口
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        # 获取订单ID
+        order_id = request.data.get('order_id')
+        if not order_id:
+            return Response({'detail': '请提供订单ID'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 1, 根据编号获取订单
+        try:
+            order = Order.objects.get(id=order_id)
+        except Order.DoesNotExist:
+            return Response({'detail': '订单不存在'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # 2, 判断订单状态是否为"新订单", 如果不是"新订单", 则不能作废
+        if order.delivery_status != 1:  # 1表示新订单
+            return Response({'detail': '只有新订单状态的订单才能作废'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # 3, 找到订单详情
+        order_details = OrderDetail.objects.filter(order=order).select_related('inventory')
+        
+        # 4, 开启数据库原子事务
+        try:
+            with transaction.atomic():
+                # 提前收集所有需要更新的库存ID，减少锁定次数
+                inventory_ids = [detail.inventory_id for detail in order_details]
+                
+                # 一次性锁定所有相关的库存记录
+                inventories = {
+                    inv.id: inv for inv in Inventory.objects.select_for_update().filter(id__in=inventory_ids)
+                }
+                
+                # 批量更新库存的been_order字段
+                for detail in order_details:
+                    inventory = inventories.get(detail.inventory_id)
+                    if inventory:
+                        inventory.been_order -= detail.quantity
+                
+                # 批量保存更新后的库存
+                if inventories:
+                    Inventory.objects.bulk_update(inventories.values(), ['been_order'])
+                
+                # 记录操作日志
+                now = datetime.datetime.now()
+                timestamp = now.strftime('%Y-%m-%d %H:%M:%S')
+                
+                OperationLog.objects.create(
+                    order=order,
+                    description=f"于 {timestamp} 作废订单: {order.order_number}",
+                    operator=request.user
+                )
+                
+                # 4.2, 直接删除订单
+                order.delete()  # 删除订单会级联删除订单详情
+                
+        except Exception as e:
+            return Response({'detail': f'订单作废失败: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+        # 5, 返回成功信息
+        return Response({'detail': '订单作废成功'}, status=status.HTTP_200_OK)

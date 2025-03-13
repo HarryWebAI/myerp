@@ -15,4 +15,5 @@ router.register('installer', views.InstallerViewSet, basename='installer')  # хо
 
 urlpatterns = [
     path('order/create/', views.CreateOrderView.as_view(), name='order_create'),
+    path('order/abandon/', views.AbandonOrderViewSet.as_view(), name='order_abandon'),
 ] + router.urls

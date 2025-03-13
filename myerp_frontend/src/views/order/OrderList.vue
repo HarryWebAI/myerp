@@ -353,6 +353,11 @@ const paymentFormRules = {
             <span>{{ scope.row.client_name }}</span>
           </template>
         </el-table-column>
+        <el-table-column label="销售人员" >
+          <template #default="scope">
+            <span>{{ scope.row.staff_name }}</span>
+          </template>
+        </el-table-column>
         <el-table-column label="下单日期" >
           <template #default="scope">
             <span>{{ scope.row.sign_time ? timeFormatter.stringFromDate(scope.row.sign_time) : '-' }}</span>
@@ -361,18 +366,6 @@ const paymentFormRules = {
         <el-table-column label="总金额" class="table-amount">
           <template #default="scope">
             <span class="table-amount">￥{{ scope.row.total_amount }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="首付订金" >
-          <template #default="scope">
-            <span class="table-down-payment">￥{{ scope.row.down_payment }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="待付尾款" >
-          <template #default="scope">
-            <span :class="['table-balance', { 'pending-balance': scope.row.pending_balance > 0 }]">
-              ￥{{ scope.row.pending_balance }}
-            </span>
           </template>
         </el-table-column>
         <el-table-column label="毛利润" >
@@ -402,6 +395,13 @@ const paymentFormRules = {
             </el-tag>
           </template>
         </el-table-column>
+        <el-table-column label="待付尾款" >
+          <template #default="scope">
+            <span :class="['table-balance', { 'pending-balance': scope.row.pending_balance > 0 }]">
+              ￥{{ scope.row.pending_balance }}
+            </span>
+          </template>
+        </el-table-column>
         <el-table-column label="操作" fixed="right" width="250px">
           <template #default="scope">
             <div class="action-buttons">
@@ -411,7 +411,7 @@ const paymentFormRules = {
               </el-button>
               <el-button
                 v-if="scope.row.pending_balance > 0"
-                type="success"
+                type="warning"
                 @click="openPaymentForm(scope.row)"
                 size="small"
                 class="action-button"

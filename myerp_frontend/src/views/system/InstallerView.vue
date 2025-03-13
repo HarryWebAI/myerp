@@ -4,7 +4,7 @@ import FormDialog from '@/components/FormDialog.vue'
 import installerHttp from '@/api/installerHttp'
 import { ref, onMounted, reactive } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Edit, Delete, View } from '@element-plus/icons-vue'
+import { Plus, Edit, Delete } from '@element-plus/icons-vue'
 
 /**获取数据 */
 let installers = ref([])

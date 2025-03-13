@@ -1,14 +1,15 @@
 <script setup>
 import MainBox from '@/components/MainBox.vue'
 import { onMounted, reactive, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import orderHttp from '@/api/orderHttp'
 import timeFormatter from '@/utils/timeFormatter'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import FormDialog from '@/components/FormDialog.vue'
 import installerHttp from '@/api/installerHttp'
 
 const route = useRoute()
+const router = useRouter()
 const orderId = route.params.id
 const order = ref(null)
 const installers = ref([])
@@ -75,6 +76,43 @@ const handleInstallSubmit = () => {
       ElMessage.error(result.data.detail)
     }
   })
+}
+
+/**
+ * 订单作废功能
+ */
+const handleAbandonOrder = () => {
+  ElMessageBox.confirm(
+    '确定要作废该订单吗？此操作将永久删除该订单，且无法恢复！',
+    '订单作废确认',
+    {
+      confirmButtonText: '确定作废',
+      cancelButtonText: '取消',
+      type: 'warning',
+      distinguishCancelAndClose: true,
+      closeOnClickModal: false
+    }
+  )
+    .then(() => {
+      orderHttp.abandonOrder({ order_id: orderId }).then((result) => {
+        if (result.status === 200) {
+          ElMessage.error(`订单${order.value.order_number}已作废！`)
+          // 跳转回订单列表页
+          setTimeout(() => {
+            router.push('/order/list')
+          }, 1000)
+        } else {
+          ElMessage.error(result.data.detail || '作废订单失败！')
+        }
+      })
+      .catch(error => {
+        console.error('作废订单出错:', error)
+        ElMessage.error('作废订单失败: ' + (error.response?.data?.detail || error.message || '未知错误'))
+      })
+    })
+    .catch(() => {
+      ElMessage.info('已取消作废操作')
+    })
 }
 </script>
 
@@ -156,10 +194,12 @@ const handleInstallSubmit = () => {
 
       <div class="install-section" v-if="order.delivery_status === 1">
         <div>
-          <p class="install-note"> - 如果货物齐全, 经与客户沟通后, 可以安排师傅出货, 上门安装完毕后请点击右侧的"一键出库", 完成出库!</p>
+          <p class="install-note success-note"> - 如果货物齐全, 经与客户沟通后, 可以安排师傅出货, 上门安装完毕后请点击右侧的"一键出库", 完成出库!</p>
+          <p class="install-note danger-note"> - 如果客户取消订单, 可以点击"作废订单"按钮, 该订单将被永久删除!</p>
         </div>
-        <div>
-          <el-button type="danger" @click="handleInstall()">一键出库</el-button>
+        <div class="action-buttons">
+          <el-button type="success" @click="handleInstall()">一键出库</el-button>
+          <el-button type="danger" @click="handleAbandonOrder">作废订单</el-button>
         </div>
       </div>
       <div class="install-section" v-else>
@@ -275,6 +315,18 @@ const handleInstallSubmit = () => {
   margin: 5px 0 0 0;
 }
 
+.success-note {
+  color: #67C23A !important;
+  font-weight: bold;
+  font-size: 13px !important;
+}
+
+.danger-note {
+  color: #F56C6C !important;
+  font-weight: bold;
+  font-size: 13px !important;
+}
+
 .install-note-success {
   color: #67C23A;
   font-weight: bold;
@@ -283,5 +335,15 @@ const handleInstallSubmit = () => {
 .install-note-danger {
   color: #F56C6C;
   font-weight: bold;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.warning-note {
+  color: #E6A23C;
+  margin-top: 5px;
 }
 </style>
