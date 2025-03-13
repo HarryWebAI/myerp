@@ -2,25 +2,28 @@ import Http from './http'
 
 const http = new Http()
 
+// 创建库存商品
 const createInventoryData = (data) => {
   const path = '/inventory/'
 
   return http.post(path, data)
 }
 
+// 获取库存商品列表
 const requestInventoryData = (page, params) => {
   const path = `/inventory/?page=${page}`
 
   return http.get(path, params)
 }
 
+// 更新库存商品
 const updateInventoryData = (data) => {
   const path = `/inventory/${data.id}/`
 
   return http.put(path, data)
 }
 
-// 收发货接口页面获取指定品牌的所有商品
+// 收发货接口页面获取指定品牌的所有商品(不分页)
 const requestAllInventoryData = (id) => {
   if (id < 1) {
     return false
@@ -72,30 +75,35 @@ const requestReceiveDetails = (id) => {
   return http.get(path)
 }
 
+// 采购明细修正
 const updatePurchaseDetail = (id, data) => {
   const path = `/purchase/detail/update/${id}/`
 
   return http.put(path, data)
 }
 
+// 收货明细修正
 const updateReceiveDetail = (id, data) => {
   const path = `/receive/detail/update/${id}/`
 
   return http.put(path, data)
 }
 
+// 删除采购明细
 const deletePurchaseDetail = (id) => {
   const path = `/purchase/detail/delete/${id}/`
 
   return http.delete(path)
 }
 
+// 删除收货明细
 const deleteReceiveDetail = (id) => {
   const path = `/receive/detail/delete/${id}/`
 
   return http.delete(path)
 }
 
+// 下载库存数据
 const downloadInventoryData = () => {
   const path = '/download/'
 
@@ -117,5 +125,5 @@ export default {
   updateReceiveDetail,
   deletePurchaseDetail,
   deleteReceiveDetail,
-  downloadInventoryData
+  downloadInventoryData,
 }

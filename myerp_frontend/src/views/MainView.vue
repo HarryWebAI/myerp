@@ -5,19 +5,6 @@ import { ElMessageBox, ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
 import FormDialog from '@/components/FormDialog.vue'
 import loginHttp from '@/api/loginHttp'
-import {
-  HomeFilled,
-  Menu,
-  Grid,
-  Upload,
-  List,
-  Download,
-  Checked,
-  Tickets,
-  Money,
-  CirclePlus,
-  User
-} from '@element-plus/icons-vue'
 
 const router = useRouter()
 
@@ -136,7 +123,7 @@ const resetPassword = () => {
           <span>库存管理</span>
         </template>
         <el-menu-item index="4-1" :route="{ name: 'inventory_purchase' }">
-          <el-icon><Upload /></el-icon>
+          <el-icon><ShoppingCart /></el-icon>
           <span>申请发货</span>
         </el-menu-item>
         <el-menu-item index="4-2" :route="{ name: 'inventory_purchase_list' }">
@@ -144,7 +131,7 @@ const resetPassword = () => {
           <span>发货记录</span>
         </el-menu-item>
         <el-menu-item index="4-3" :route="{ name: 'inventory_receive' }">
-          <el-icon><Download /></el-icon>
+          <el-icon><ShoppingCartFull /></el-icon>
           <span>收货入库</span>
         </el-menu-item>
         <el-menu-item index="4-4" :route="{ name: 'inventory_receive_list' }">
@@ -156,8 +143,8 @@ const resetPassword = () => {
           <span>库存列表</span>
         </el-menu-item>
         <el-menu-item index="4-6" :route="{ name: 'inventory_excel' }">
-          <el-icon><Download /></el-icon>
-          <span>库存备份</span>
+          <el-icon><DCaret /></el-icon>
+          <span>盘点备份</span>
         </el-menu-item>
       </el-sub-menu>
 

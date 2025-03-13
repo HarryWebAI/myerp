@@ -8,6 +8,8 @@ from . import models, serializers, paginations
 import pandas as pd
 from django.http import HttpResponse
 from datetime import datetime
+import os  # 添加os模块用于文件扩展名验证
+from rest_framework.parsers import MultiPartParser  # 添加文件上传解析器
 
 class InventoryViewSet(viewsets.GenericViewSet,
                        viewsets.mixins.CreateModelMixin,
@@ -545,11 +547,17 @@ class InventoryDownloadView(APIView):
     def get(self, request):
         # 获取所有库存数据
         queryset = models.Inventory.objects.order_by('-brand__id', '-category__id', '-id').all()
-
         results = queryset.values('id', 'name', 'brand__name', 'category__name', 'size', 'color', 'cost', 'on_road', 'in_stock', 'been_order', 'sold')
 
         try: 
-            inventory_df = pd.DataFrame(results)
+            # 如果没有数据，创建一个空的DataFrame但包含所有列
+            if not results:
+                inventory_df = pd.DataFrame(columns=[
+                    'id', 'name', 'brand__name', 'category__name', 'size', 
+                    'color', 'cost', 'on_road', 'in_stock', 'been_order', 'sold'
+                ])
+            else:
+                inventory_df = pd.DataFrame(results)
 
             inventory_df = inventory_df.rename(columns={
                 'name': '名称',
@@ -574,3 +582,103 @@ class InventoryDownloadView(APIView):
             return response
         except Exception as e:
             return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+class InventoryUploadView(APIView):
+    """
+    库存数据上传接口
+    """
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser]  # 添加文件上传解析器
+    
+    def post(self, request):
+        try:
+            # 1. 验证文件是否存在
+            if 'file' not in request.FILES:
+                return Response({'detail': '请上传文件'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            file = request.FILES['file']
+            
+            # 2. 验证文件格式
+            file_extension = os.path.splitext(file.name)[1].lower()
+            if file_extension not in ['.xlsx', '.xls']:
+                return Response({'detail': '只支持.xlsx或.xls格式的文件'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 3. 读取Excel文件
+            df = pd.read_excel(file)
+            
+            # 4. 验证必要的列是否存在
+            required_columns = ['名称', '品牌', '分类', '尺码', '颜色', '成本']
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            if missing_columns:
+                return Response(
+                    {'detail': f'缺少必要的列: {", ".join(missing_columns)}'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # 5. 创建空列表用于存储要创建的库存对象
+            inventory_objects = []
+            
+            # 获取所有品牌和分类的集合，用于验证
+            existing_brands = set(models.Brand.objects.values_list('name', flat=True))
+            existing_categories = set(models.Category.objects.values_list('name', flat=True))
+            
+            # 获取Excel中的所有品牌和分类
+            excel_brands = set(df['品牌'].unique())
+            excel_categories = set(df['分类'].unique())
+            
+            # 检查是否有不存在的品牌
+            invalid_brands = excel_brands - existing_brands
+            if invalid_brands:
+                return Response({
+                    'detail': f'发现未经授权的品牌: {", ".join(invalid_brands)}，请先在系统中创建这些品牌。'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 检查是否有不存在的分类
+            invalid_categories = excel_categories - existing_categories
+            if invalid_categories:
+                return Response({
+                    'detail': f'发现未经授权的分类: {", ".join(invalid_categories)}，请先在系统中创建这些分类。'
+                }, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 预先获取所有需要用到的品牌和分类对象
+            brands_dict = {brand.name: brand for brand in models.Brand.objects.filter(name__in=excel_brands)}
+            categories_dict = {category.name: category for category in models.Category.objects.filter(name__in=excel_categories)}
+            
+            # 6. 开启事务处理
+            with transaction.atomic():
+                # 首先清空所有库存记录
+                models.Inventory.objects.all().delete()
+                
+                # 遍历Excel的每一行
+                for index, row in df.iterrows():
+                    # 从预加载的字典中获取品牌和分类对象
+                    brand = brands_dict[row['品牌']]
+                    category = categories_dict[row['分类']]
+                    
+                    # 创建库存对象（但不保存到数据库）
+                    inventory = models.Inventory(
+                        name=row['名称'],
+                        brand=brand,
+                        category=category,
+                        size=row['尺码'],
+                        color=row['颜色'],
+                        cost=row['成本'],
+                        on_road=row.get('物流在途', 0),
+                        in_stock=row.get('当前在库', 0),
+                        been_order=row.get('已被订购', 0),
+                        sold=row.get('已售出', 0)
+                    )
+                    inventory_objects.append(inventory)
+                
+                # 7. 批量创建库存记录
+                models.Inventory.objects.bulk_create(inventory_objects)
+            
+            return Response({
+                'detail': f'成功导入{len(inventory_objects)}条库存记录',
+                'count': len(inventory_objects)
+            }, status=status.HTTP_201_CREATED)
+            
+        except Exception as e:
+            return Response({'detail': f'导入失败: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+    
