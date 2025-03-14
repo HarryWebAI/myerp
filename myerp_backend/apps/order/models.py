@@ -24,11 +24,13 @@ class Order(models.Model):
     DELIVERY_STATUS_CHOICES = (
         (1, '新订单'),
         (2, '已送货'),
+        (3, '已作废')
     )
     
     PAYMENT_STATUS_CHOICES = (
         (1, '未结清'),
         (2, '已结清'),
+        (3, '已作废')
     )
     
     brand = models.ForeignKey(Brand, on_delete=models.CASCADE, related_name='orders', verbose_name='品牌')
@@ -67,11 +69,15 @@ class Order(models.Model):
         # 计算毛利润 = 订单总额 - 成本总价 - 安装费用 - 运输费用
         self.gross_profit = self.total_amount - self.total_cost - self.installation_fee - self.transportation_fee
         
-        # 更新订单结清状态
-        if self.pending_balance <= 0:
-            self.payment_status = 2  # 已结清
+        # 更新订单结清状态，但如果订单已作废，则保持作废状态
+        if self.delivery_status == 3:  # 如果订单已作废
+            self.payment_status = 3  # 保持付款状态为已作废
         else:
-            self.payment_status = 1  # 未结清
+            # 正常订单的付款状态逻辑
+            if self.pending_balance <= 0:
+                self.payment_status = 2  # 已结清
+            else:
+                self.payment_status = 1  # 未结清
             
         super().save(*args, **kwargs)
 

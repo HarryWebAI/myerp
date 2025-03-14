@@ -64,6 +64,8 @@ class MonthlyOrdersByStaffView(APIView):
             staff_performance = Order.objects.filter(
                 sign_time__date__gte=first_day,
                 sign_time__date__lte=last_day
+            ).exclude(
+                delivery_status=3  # 排除已作废订单
             ).values(
                 'staff__uid', 
                 'staff__name'
@@ -108,6 +110,8 @@ class CurrentYearMonthlySalesView(APIView):
             # 查询当前年份的订单数据并按月分组
             monthly_sales = Order.objects.filter(
                 sign_time__year=current_year
+            ).exclude(
+                delivery_status=3  # 排除已作废订单
             ).annotate(
                 month=TruncMonth('sign_time')
             ).values('month').annotate(

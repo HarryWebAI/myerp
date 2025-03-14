@@ -158,6 +158,11 @@ class OrderViewSet(viewsets.ReadOnlyModelViewSet):
         date_start = self.request.query_params.get('date_start')
         date_end = self.request.query_params.get('date_end')
         
+        # 只有当用户明确选择查看已作废订单时，才包含已作废订单
+        # 如果用户没有指定delivery_status或指定为空，则默认排除已作废订单
+        if not delivery_status or delivery_status == '':
+            queryset = queryset.exclude(delivery_status=3)  # 默认排除已作废订单
+        
         # 应用过滤条件（只有当值不是默认值时）
         if order_number and order_number != '':
             queryset = queryset.filter(order_number__icontains=order_number)
@@ -178,6 +183,16 @@ class OrderViewSet(viewsets.ReadOnlyModelViewSet):
             
         return queryset
     
+    def retrieve(self, request, *args, **kwargs):
+        """重写retrieve方法，允许获取已作废的订单详情"""
+        try:
+            # 直接从数据库获取订单，不经过get_queryset过滤
+            instance = Order.objects.get(pk=kwargs.get('pk'))
+            serializer = self.get_serializer(instance)
+            return Response(serializer.data)
+        except Order.DoesNotExist:
+            return Response({'detail': '订单不存在'}, status=status.HTTP_404_NOT_FOUND)
+    
     def list(self, request, *args, **kwargs):
         """重写list方法，增加当月总销量、当月总利润和全部待收尾款的统计"""
         # 获取过滤后的查询集
@@ -192,7 +207,7 @@ class OrderViewSet(viewsets.ReadOnlyModelViewSet):
         current_month_orders = Order.objects.filter(
             sign_time__year=current_year,
             sign_time__month=current_month
-        )
+        ).exclude(delivery_status=3)  # 排除已作废订单
         
         monthly_total_amount = current_month_orders.aggregate(
             total=Sum('total_amount')
@@ -205,6 +220,8 @@ class OrderViewSet(viewsets.ReadOnlyModelViewSet):
         # 计算全部待收尾款
         total_pending_balance = Order.objects.filter(
             payment_status=1  # 未结清
+        ).exclude(
+            delivery_status=3  # 排除已作废订单
         ).aggregate(
             total=Sum('pending_balance')
         )['total'] or 0
@@ -545,8 +562,32 @@ class AbandonOrderViewSet(APIView):
                     operator=request.user
                 )
                 
-                # 4.2, 直接删除订单
-                order.delete()  # 删除订单会级联删除订单详情
+                # 先将订单状态更新为"已作废"
+                order.delivery_status = 3  # 3表示已作废
+                order.payment_status = 3  # 3表示已作废
+                order.save()
+                
+                # 尾款清零处理
+                pending_balance = order.pending_balance
+                if pending_balance > 0:
+                    # 创建一条尾款收取数据，将尾款清零
+                    BalancePayment.objects.create(
+                        order=order,
+                        amount=pending_balance,
+                        operator=request.user
+                    )
+                    
+                    # 记录尾款清零日志
+                    OperationLog.objects.create(
+                        order=order,
+                        description=f"于 {timestamp} 因订单作废，系统自动清零尾款: ￥{pending_balance}",
+                        operator=request.user
+                    )
+                    
+                    # 再次确保订单状态为作废
+                    order.refresh_from_db()
+                    order.payment_status = 3  # 确保付款状态为已作废
+                    order.save()
                 
         except Exception as e:
             return Response({'detail': f'订单作废失败: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

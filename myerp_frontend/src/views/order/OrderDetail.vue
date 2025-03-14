@@ -1,13 +1,12 @@
 <script setup>
 import MainBox from '@/components/MainBox.vue'
-import { onMounted, reactive, ref, computed } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import orderHttp from '@/api/orderHttp'
 import timeFormatter from '@/utils/timeFormatter'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import FormDialog from '@/components/FormDialog.vue'
 import installerHttp from '@/api/installerHttp'
-import dayjs from 'dayjs'
 import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
@@ -17,7 +16,6 @@ const authStore = useAuthStore()
 const orderId = route.params.id
 const order = ref({})
 const installers = ref([])
-const loading = ref(true)
 
 onMounted(() => {
   // 获取订单详情
@@ -88,7 +86,7 @@ const handleInstallSubmit = () => {
  */
 const handleAbandonOrder = () => {
   ElMessageBox.confirm(
-    '确定要作废该订单吗？此操作将永久删除该订单，且无法恢复！',
+    '确定要作废该订单吗？此操作将永久作废该订单，且无法恢复！',
     '订单作废确认',
     {
       confirmButtonText: '确定作废',
@@ -128,11 +126,33 @@ const handleAbandonOrder = () => {
         <div class="header-box">
           <h3>订单号: {{ order.order_number }}</h3>
           <div>
-            <el-tag :type="order.delivery_status === 1 ? 'warning' : 'success'" class="status-tag">
-              {{ order.delivery_status === 1 ? '新订单' : '已送货' }}
+            <el-tag
+              :type="
+                order.delivery_status === 1 ? 'warning' :
+                order.delivery_status === 2 ? 'success' :
+                'danger'
+              "
+              class="status-tag"
+            >
+              {{
+                order.delivery_status === 1 ? '新订单' :
+                order.delivery_status === 2 ? '已送货' :
+                '已作废'
+              }}
             </el-tag>
-            <el-tag :type="order.payment_status === 1 ? 'warning' : 'success'" class="status-tag">
-              {{ order.payment_status === 1 ? '未结清' : '已结清' }}
+            <el-tag
+              :type="
+                order.payment_status === 1 ? 'warning' :
+                order.payment_status === 2 ? 'success' :
+                'danger'
+              "
+              class="status-tag"
+            >
+              {{
+                order.payment_status === 1 ? '未结清' :
+                order.payment_status === 2 ? '已结清' :
+                '已作废'
+              }}
             </el-tag>
           </div>
         </div>

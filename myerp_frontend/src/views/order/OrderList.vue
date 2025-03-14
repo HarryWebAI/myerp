@@ -46,7 +46,8 @@ let totalPendingBalance = ref(0)
 const deliveryStatusOptions = [
   { label: '全部', value: '' },
   { label: '新订单', value: 1 },
-  { label: '已送货', value: 2 }
+  { label: '已送货', value: 2 },
+  { label: '已作废', value: 3 }
 ]
 
 const paymentStatusOptions = [
@@ -206,6 +207,24 @@ const paymentFormRules = {
     { type: 'number', message: '金额必须为数字', trigger: 'blur' },
     { type: 'number', min: 0.01, message: '金额必须大于0', trigger: 'blur' }
   ]
+}
+
+const getDeliveryStatusType = (status) => {
+  switch (status) {
+    case 1: return 'warning'  // 新订单
+    case 2: return 'success'  // 已送货
+    case 3: return 'danger'   // 已作废
+    default: return 'info'
+  }
+}
+
+const getDeliveryStatusText = (status) => {
+  switch (status) {
+    case 1: return '新订单'
+    case 2: return '已送货'
+    case 3: return '已作废'
+    default: return '未知状态'
+  }
 }
 </script>
 
@@ -380,20 +399,28 @@ const paymentFormRules = {
         <el-table-column label="发货状态" >
           <template #default="scope">
             <el-tag
-              :type="scope.row.delivery_status === 1 ? 'warning' : 'success'"
+              :type="getDeliveryStatusType(scope.row.delivery_status)"
               class="status-tag"
             >
-              {{ scope.row.delivery_status === 1 ? '新订单' : '已送货' }}
+              {{ getDeliveryStatusText(scope.row.delivery_status) }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="付款状态">
           <template #default="scope">
             <el-tag
-              :type="scope.row.payment_status === 1 ? 'warning' : 'success'"
+              :type="
+                scope.row.payment_status === 1 ? 'warning' :
+                scope.row.payment_status === 2 ? 'success' :
+                'danger'
+              "
               class="status-tag"
             >
-              {{ scope.row.payment_status === 1 ? '未结清' : '已结清' }}
+              {{
+                scope.row.payment_status === 1 ? '未结清' :
+                scope.row.payment_status === 2 ? '已结清' :
+                '已作废'
+              }}
             </el-tag>
           </template>
         </el-table-column>
@@ -412,7 +439,7 @@ const paymentFormRules = {
                 <span>查看详情</span>
               </el-button>
               <el-button
-                v-if="scope.row.pending_balance > 0 && authStore.canViewCost"
+                v-if="scope.row.pending_balance > 0 && authStore.canViewCost && scope.row.delivery_status !== 3"
                 type="warning"
                 @click="openPaymentForm(scope.row)"
                 size="small"

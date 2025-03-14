@@ -1,7 +1,7 @@
 <script setup>
 import MainBox from '@/components/MainBox.vue';
 import FormDialog from '@/components/FormDialog.vue';
-import { ref, reactive, onMounted, computed, watch } from 'vue';
+import { ref, reactive, onMounted, computed } from 'vue';
 import { ElMessage } from 'element-plus';
 import { useRouter } from 'vue-router';
 import orderHttp from '@/api/orderHttp';
@@ -802,18 +802,6 @@ const createClient = () => {
         <el-table-column prop="quantity" label="数量" width="100" align="center">
           <template #default="scope">
             {{ scope.row.quantity }}
-          </template>
-        </el-table-column>
-
-        <el-table-column label="单价" width="100" align="right" v-if="authStore.canViewCost">
-          <template #default="scope">
-            ¥{{ scope.row.cost }}
-          </template>
-        </el-table-column>
-
-        <el-table-column label="小计" width="120" align="right" v-if="authStore.canViewCost">
-          <template #default="scope">
-            ¥{{ scope.row.subtotal }}
           </template>
         </el-table-column>
 
