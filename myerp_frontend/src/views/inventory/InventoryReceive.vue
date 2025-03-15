@@ -51,7 +51,7 @@ const confirmBrand = (showMessage = true) => {
         inventories.value = filteredInventories
         if (showMessage) {
           ElMessage({
-            message: '请点击右侧蓝色按钮开始收货!',
+            message: '请点击右侧绿色按钮开始收货!',
             type: 'success',
             customClass: 'blue-bg-message',
           })
