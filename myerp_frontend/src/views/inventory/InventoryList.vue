@@ -228,112 +228,127 @@ const onSearch = (action) => {
 
 <template>
   <MainBox title="库存列表">
-    <el-card>
+    <el-card class="inventory-list-card">
       <template #header>
-        <div class="header-box">
-          <div>
-            <el-form inline>
-              <el-form-item label="按品牌">
-                <!-- 绑定数据 -->
-                <el-select v-model="filterForm.brand_id" style="width: 100px">
-                  <el-option :value="0" label="选择品牌" />
-                  <el-option
-                    v-for="brand in brands"
-                    :label="brand.name"
-                    :value="brand.id"
-                    :key="brand.id"
-                  />
-                </el-select>
-              </el-form-item>
-              <el-form-item label="按分类">
-                <!-- 同理 -->
-                <el-select v-model="filterForm.category_id" style="width: 100px">
-                  <el-option :value="0" label="选择分类" />
-                  <el-option
-                    v-for="category in categories"
-                    :label="category.name"
-                    :value="category.id"
-                    :key="category.id"
-                  />
-                </el-select>
-              </el-form-item>
-              <el-form-item label="按名称">
-                <el-input type="text" v-model="filterForm.name" placeholder="输入名称" />
-              </el-form-item>
-              <el-form-item>
-                <el-tooltip content="点击搜索" placement="bottom" effect="light">
-                  <el-button @click="onSearch(true)" round icon="search" />
-                </el-tooltip>
-                <el-tooltip content="取消搜索" placement="bottom" effect="light">
-                  <el-button @click="onSearch(false)" round icon="close" type="info" />
-                </el-tooltip>
-              </el-form-item>
-              <el-form-item v-if="authStore.canViewCost">
-                <el-tooltip content="当前库存总成本" placement="bottom" effect="light">
-                  <span style="color: red">￥{{ total_cost }}</span>
-                </el-tooltip>
-              </el-form-item>
-            </el-form>
+        <div class="dashboard-header">
+          <!-- 统计数据部分 -->
+          <div class="summary-dashboard" v-if="authStore.canViewCost">
+            <div class="summary-item">
+              <el-icon class="summary-icon" :class="[
+                total_cost > 100000 ? 'high-cost' :
+                total_cost < 10000 ? 'low-cost' : 'normal-cost'
+              ]"><Money /></el-icon>
+              <div class="summary-content">
+                <span class="summary-label">库存总成本</span>
+                <span class="summary-value" :class="[
+                  total_cost > 100000 ? 'high-cost-text' :
+                  total_cost < 10000 ? 'low-cost-text' : 'normal-cost-text'
+                ]">￥{{ total_cost }}</span>
+              </div>
+            </div>
           </div>
-          <div>
-            <el-button type="success" @click="openForm('create')">新增商品</el-button>
+
+          <!-- 筛选部分 -->
+          <div class="filter-section">
+            <div class="filter-row">
+              <el-select v-model="filterForm.brand_id" placeholder="选择品牌" clearable class="filter-item">
+                <template #prefix>
+                  <el-icon><Menu /></el-icon>
+                </template>
+                <el-option :value="0" label="全部品牌" />
+                <el-option
+                  v-for="brand in brands"
+                  :label="brand.name"
+                  :value="brand.id"
+                  :key="brand.id"
+                />
+              </el-select>
+
+              <el-select v-model="filterForm.category_id" placeholder="选择分类" clearable class="filter-item">
+                <template #prefix>
+                  <el-icon><Folder /></el-icon>
+                </template>
+                <el-option :value="0" label="全部分类" />
+                <el-option
+                  v-for="category in categories"
+                  :label="category.name"
+                  :value="category.id"
+                  :key="category.id"
+                />
+              </el-select>
+
+              <el-input
+                v-model="filterForm.name"
+                placeholder="商品名称"
+                clearable
+                class="filter-item"
+              >
+                <template #prefix>
+                  <el-icon><Search /></el-icon>
+                </template>
+              </el-input>
+            </div>
+
+            <div class="filter-actions">
+              <el-button type="primary" @click="onSearch(true)" icon="Search">搜索</el-button>
+              <el-button @click="onSearch(false)" icon="RefreshRight">重置</el-button>
+              <el-button type="success" @click="openForm('create')" icon="Plus">新增商品</el-button>
+            </div>
           </div>
         </div>
       </template>
 
-      <el-table :data="inventories">
-        <el-table-column prop="full_name" label="名称" fixed />
+      <el-table :data="inventories" class="inventory-table" :header-cell-style="{ background: '#f5f7fa' }">
+        <el-table-column prop="full_name" label="名称" fixed min-width="200" />
         <el-table-column label="品牌" width="100">
           <template #default="scope">
-            <span>{{ scope.row.brand.name }}</span>
+            <el-tag size="small" type="info">{{ scope.row.brand.name }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="分类" width="100">
           <template #default="scope">
-            <span>{{ scope.row.category.name }}</span>
+            <el-tag size="small" type="success">{{ scope.row.category.name }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="当前库存" width="80" align="center">
+        <el-table-column label="当前库存" width="100" align="center">
           <template #default="scope">
             <el-tooltip
               :content="'物流在途:' + scope.row.on_road + ',实际在库:' + scope.row.in_stock"
               placement="top"
               effect="light"
             >
-              <el-tag type="primary" class="table-tag">{{ scope.row.current_inventory }}</el-tag>
+              <el-tag type="primary" class="inventory-tag">{{ scope.row.current_inventory }}</el-tag>
             </el-tooltip>
           </template>
         </el-table-column>
-        <el-table-column label="当前被订" width="80">
+        <el-table-column label="当前被订" width="100" align="center">
           <template #default="scope">
-            <el-tag type="success" class="table-tag">{{ scope.row.been_order }}</el-tag>
+            <el-tag type="success" class="inventory-tag">{{ scope.row.been_order }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="实际可售" width="80">
+        <el-table-column label="实际可售" width="100" align="center">
           <template #default="scope">
             <el-tooltip content="实际可售小于0时, 说明您该发货了!"  placement="top" effect="light">
-            <el-tag
-              :type="scope.row.can_be_sold > 10 ? 'warning' :
-                    scope.row.can_be_sold < 0 ? 'danger' : 'info'"
-              class="table-tag">{{ scope.row.can_be_sold }}</el-tag>
+              <el-tag
+                :type="scope.row.can_be_sold > 10 ? 'warning' :
+                      scope.row.can_be_sold < 0 ? 'danger' : 'info'"
+                class="inventory-tag">{{ scope.row.can_be_sold }}</el-tag>
             </el-tooltip>
           </template>
         </el-table-column>
         <el-table-column label="单个进价" width="130" v-if="authStore.canViewCost">
           <template #default="scope">
-            <span>￥</span>
-            <span>{{ scope.row.cost }}</span>
+            <span class="price-value">￥{{ scope.row.cost }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="库存成本" width="120" v-if="authStore.canViewCost">
+        <el-table-column label="库存成本" width="130" v-if="authStore.canViewCost">
           <template #default="scope">
-            <span>￥</span>
-            <span>{{ scope.row.total_cost }}</span>
+            <span class="price-value total-price">￥{{ scope.row.total_cost }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="140" align="center">
+        <el-table-column label="操作" width="140" align="center" fixed="right">
           <template #default="scope">
-            <el-button type="primary" @click="openForm('update', scope.row)">
+            <el-button type="primary" size="small" @click="openForm('update', scope.row)" class="action-button">
               <el-icon><EditPen /></el-icon>
               <span>修改信息</span>
             </el-button>
@@ -341,11 +356,13 @@ const onSearch = (action) => {
         </el-table-column>
       </el-table>
       <template #footer>
-        <PaginationView
-          v-model="pagination.page"
-          :page_size="10"
-          :total="pagination.total"
-        ></PaginationView>
+        <div class="pagination-container">
+          <PaginationView
+            v-model="pagination.page"
+            :page_size="10"
+            :total="pagination.total"
+          ></PaginationView>
+        </div>
       </template>
     </el-card>
   </MainBox>
@@ -359,7 +376,7 @@ const onSearch = (action) => {
       :label-width="80"
     >
       <el-form-item label="所属品牌" prop="brand_id">
-        <el-select v-model="createInventoryFormData.brand_id">
+        <el-select v-model="createInventoryFormData.brand_id" class="form-select">
           <el-option label="请选择所属品牌" :value="0"></el-option>
           <el-option
             v-for="brand in brands"
@@ -370,7 +387,7 @@ const onSearch = (action) => {
         </el-select>
       </el-form-item>
       <el-form-item label="商品分类" prop="category_id">
-        <el-select v-model="createInventoryFormData.category_id">
+        <el-select v-model="createInventoryFormData.category_id" class="form-select">
           <el-option label="请选择商品分类" :value="0"></el-option>
           <el-option
             v-for="category in categories"
@@ -390,7 +407,13 @@ const onSearch = (action) => {
         <el-input type="text" v-model="createInventoryFormData.color" />
       </el-form-item>
       <el-form-item label="￥ 进价" prop="cost" v-if="authStore.canViewCost">
-        <el-input type="number" v-model.number="createInventoryFormData.cost" />
+        <el-input-number
+          v-model.number="createInventoryFormData.cost"
+          :precision="2"
+          :step="0.01"
+          :min="0"
+          style="width: 100%"
+        />
       </el-form-item>
     </el-form>
   </FormDialog>
@@ -404,7 +427,7 @@ const onSearch = (action) => {
       :label-width="80"
     >
       <el-form-item label="所属品牌" prop="brand_id">
-        <el-select v-model="updateInventoryFormData.brand_id">
+        <el-select v-model="updateInventoryFormData.brand_id" class="form-select">
           <el-option label="请选择所属品牌" :value="0"></el-option>
           <el-option
             v-for="brand in brands"
@@ -415,7 +438,7 @@ const onSearch = (action) => {
         </el-select>
       </el-form-item>
       <el-form-item label="商品分类" prop="category_id">
-        <el-select v-model="updateInventoryFormData.category_id">
+        <el-select v-model="updateInventoryFormData.category_id" class="form-select">
           <el-option label="请选择商品分类" :value="0"></el-option>
           <el-option
             v-for="category in categories"
@@ -435,18 +458,200 @@ const onSearch = (action) => {
         <el-input type="text" v-model="updateInventoryFormData.color" />
       </el-form-item>
       <el-form-item label="￥ 进价" prop="cost" v-if="authStore.canViewCost">
-        <el-input type="number" v-model.number="updateInventoryFormData.cost" />
+        <el-input-number
+          v-model.number="updateInventoryFormData.cost"
+          :precision="2"
+          :step="0.01"
+          :min="0"
+          style="width: 100%"
+        />
       </el-form-item>
     </el-form>
   </FormDialog>
 </template>
 
 <style scoped>
-.header-box {
+/* 主卡片样式 */
+.inventory-list-card {
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* 头部布局 */
+.dashboard-header {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* 统计数据样式 */
+.summary-dashboard {
   display: flex;
   justify-content: space-between;
+  gap: 20px;
+  padding: 16px;
+  background: #f6f8fc;
+  border-radius: 8px;
 }
-.table-tag {
+
+.summary-item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s;
+}
+
+.summary-item:hover {
+  transform: translateY(-2px);
+}
+
+.summary-icon {
+  padding: 8px;
+  border-radius: 8px;
+  font-size: 24px;
+}
+
+.high-cost {
+  background: #fde2e2;
+  color: #F56C6C;
+}
+
+.normal-cost {
+  background: #e7f6e9;
+  color: #67C23A;
+}
+
+.low-cost {
+  background: #f4f4f5;
+  color: #909399;
+}
+
+.summary-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.summary-label {
+  font-size: 14px;
+  color: #606266;
+}
+
+.summary-value {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.high-cost-text { color: #F56C6C; }
+.normal-cost-text { color: #67C23A; }
+.low-cost-text { color: #909399; }
+
+/* 筛选区域样式 */
+.filter-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+}
+
+.filter-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.filter-item {
+  width: 220px;
+}
+
+.filter-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid #ebeef5;
+}
+
+/* 表格样式 */
+.inventory-table {
+  margin-top: 16px;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+:deep(.el-table) {
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+:deep(.el-table th) {
+  font-weight: 600;
+  color: #606266;
+}
+
+:deep(.el-table__row) {
+  transition: background-color 0.2s ease;
+}
+
+:deep(.el-table__row:hover) {
+  background-color: #f0f5ff !important;
+}
+
+.inventory-tag {
   width: 50px;
+  font-weight: 500;
+}
+
+.price-value {
+  color: #F56C6C;
+  font-weight: 500;
+}
+
+.total-price {
+  font-weight: bold;
+}
+
+.action-button {
+  border-radius: 4px;
+  transition: transform 0.2s ease;
+}
+
+.action-button:hover {
+  transform: translateY(-2px);
+}
+
+/* 分页容器 */
+.pagination-container {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+/* 表单样式 */
+.form-select {
+  width: 100%;
+}
+
+/* 响应式布局 */
+@media (max-width: 1200px) {
+  .filter-item {
+    width: 100%;
+  }
+
+  .summary-dashboard {
+    flex-direction: column;
+  }
+
+  .filter-row {
+    flex-direction: column;
+  }
 }
 </style>
