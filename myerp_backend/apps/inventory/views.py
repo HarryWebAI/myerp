@@ -584,6 +584,9 @@ class ReceiveDetailDeleteView(APIView):
             inventory.on_road = F('on_road') + detail.quantity
             inventory.save(update_fields=['in_stock', 'on_road'])
             
+            # 刷新库存对象以获取最新值
+            inventory.refresh_from_db()
+            
             # 4. 删除收货明细
             detail.delete()
             
@@ -595,6 +598,8 @@ class ReceiveDetailDeleteView(APIView):
             # 6. 创建收货作废日志
             log_content = f"用户{request.user.name}于{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}删除了收货明细\n"
             log_content += f"商品：{inventory.full_name()}\n"
+            log_content += f"删除数量：{detail.quantity}个\n"
+            log_content += f"当前在库：{inventory.in_stock}个\n"
             log_content += f"当前在途：{inventory.on_road}个"
             if order_deleted:
                 log_content += "\n该收货单所有明细已删除，收货单作废"

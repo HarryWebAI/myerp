@@ -202,7 +202,12 @@ onMounted(() => {
                 <el-button type="primary" size="small" @click="handleEdit(scope.row)">
                   修改
                 </el-button>
-                <el-button type="danger" size="small" @click="handleDelete(scope.row)">
+                <el-button
+                  type="danger"
+                  size="small"
+                  @click="handleDelete(scope.row)"
+                  v-if="authStore.isBoss"
+                >
                   删除
                 </el-button>
               </el-button-group>

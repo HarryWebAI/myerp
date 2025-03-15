@@ -53,7 +53,6 @@ const confirmBrand = (showMessage = true) => {
           ElMessage({
             message: '请点击右侧绿色按钮开始收货!',
             type: 'success',
-            customClass: 'blue-bg-message',
           })
         }
       } else {
@@ -529,18 +528,5 @@ const getDisabledStatus = (inventoryId, rowIndex) => {
 
 :deep(.el-select-dropdown__item) {
   padding: 0 15px;
-}
-</style>
-
-<style>
-/** 自定义Elmessage */
-.blue-bg-message {
-  background-color: #409eff !important;
-  border-color: #409eff !important;
-}
-
-.blue-bg-message .el-message__icon,
-.blue-bg-message .el-message__content {
-  color: #fff !important;
 }
 </style>
