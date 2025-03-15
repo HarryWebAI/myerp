@@ -1,6 +1,6 @@
 <script setup>
 import MainBox from '@/components/MainBox.vue';
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import inventoryHttp from '@/api/inventoryHttp'
 import timeFormatter from '@/utils/timeFormatter'
 import { useAuthStore } from '@/stores/auth'
@@ -43,8 +43,79 @@ const handleSuccess = (response) => {
 
 // 上传失败的回调
 const handleError = (error) => {
-  const errorMsg = error.response?.data?.detail || '上传失败'
+  console.log('上传错误详情:', error)
+
+  // 尝试从错误响应中提取详细信息
+  let errorMsg = '上传失败'
+  let orderNumbers = []
+
+  if (error && error.error && error.error.detail) {
+    // 直接从error对象中获取detail
+    errorMsg = error.error.detail
+    if (error.error.order_numbers) {
+      orderNumbers = error.error.order_numbers
+    }
+  } else if (error.response) {
+    // 直接获取错误响应数据
+    const responseData = error.response.data
+
+    // 检查是否为字符串（可能是JSON字符串）
+    if (typeof responseData === 'string') {
+      try {
+        const parsedData = JSON.parse(responseData)
+        if (parsedData.detail) {
+          errorMsg = parsedData.detail
+          if (parsedData.order_numbers) {
+            orderNumbers = parsedData.order_numbers
+          }
+        }
+      } catch {
+        // 如果不是有效的JSON，检查是否包含detail字段的文本
+        const detailMatch = responseData.match(/"detail":"([^"]+)"/)
+        if (detailMatch && detailMatch[1]) {
+          errorMsg = detailMatch[1]
+        } else {
+          errorMsg = responseData
+        }
+      }
+    }
+    // 检查是否已经是对象
+    else if (responseData && typeof responseData === 'object') {
+      if (responseData.detail) {
+        errorMsg = responseData.detail
+        if (responseData.order_numbers) {
+          orderNumbers = responseData.order_numbers
+        }
+      }
+    }
+  } else if (error.message) {
+    // 如果没有response但有message
+    // 检查message是否是JSON字符串
+    try {
+      const parsedMessage = JSON.parse(error.message)
+      if (parsedMessage.detail) {
+        errorMsg = parsedMessage.detail
+      }
+    } catch {
+      errorMsg = error.message
+    }
+  }
+
+  // 显示错误消息
   ElMessage.error(errorMsg)
+
+  // 如果有未出库订单，显示更详细的信息
+  if (orderNumbers.length > 0) {
+    // 使用弹窗显示未出库订单列表
+    ElMessageBox.alert(
+      `未出库订单号: ${orderNumbers.join(', ')}`,
+      '存在未出库订单',
+      {
+        confirmButtonText: '我知道了',
+        type: 'warning',
+      }
+    )
+  }
 }
 
 const downloadInventory = () => {

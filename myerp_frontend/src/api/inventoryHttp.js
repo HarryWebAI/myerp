@@ -117,6 +117,12 @@ const requestInventoryLog = () => {
   return http.get(path)
 }
 
+// 添加更新采购成本的函数
+const updatePurchaseCost = (id, data) => {
+  const path = `/purchase/cost/update/${id}/`
+  return http.put(path, data)
+}
+
 export default {
   createInventoryData,
   requestInventoryData,
@@ -134,4 +140,5 @@ export default {
   deleteReceiveDetail,
   downloadInventoryData,
   requestInventoryLog,
+  updatePurchaseCost,
 }

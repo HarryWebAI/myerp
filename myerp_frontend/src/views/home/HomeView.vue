@@ -106,7 +106,9 @@ const initCharts = async () => {
   // 定义ECharts初始化选项，提高滚动性能
   const defaultOpts = {
     renderer: 'canvas',
-    useDirtyRect: true
+    useDirtyRect: true,
+    width: 'auto',
+    height: 'auto'
   }
 
   if (performanceDom) {
@@ -508,8 +510,8 @@ const updateInventoryChart = () => {
       <el-card v-loading="true" element-loading-text="加载中..." element-loading-background="rgba(255, 255, 255, 0.8)" style="width: 100%; height: 100%;">
       </el-card>
     </div>
-    <div v-else>
-      <el-row :gutter="20">
+    <div v-else class="dashboard-container">
+      <el-row class="chart-row">
         <!-- 员工业绩图表（放在最上面） -->
         <el-col :span="24">
           <el-card class="mb-4 chart-card" shadow="hover">
@@ -521,8 +523,11 @@ const updateInventoryChart = () => {
             <div id="performance-chart" class="chart-container"></div>
           </el-card>
         </el-col>
+      </el-row>
+
+      <el-row class="chart-row">
         <!-- 销售趋势和库存价值并排展示 -->
-        <el-col :span="24" :lg="12">
+        <el-col :xs="24" :sm="24" :md="12" class="chart-col">
           <el-card class="mb-4 chart-card" shadow="hover">
             <template #header>
               <div class="card-header">
@@ -532,7 +537,7 @@ const updateInventoryChart = () => {
             <div id="sales-chart" class="chart-container"></div>
           </el-card>
         </el-col>
-        <el-col :span="24" :lg="12">
+        <el-col :xs="24" :sm="24" :md="12" class="chart-col">
           <el-card class="mb-4 chart-card" shadow="hover">
             <template #header>
               <div class="card-header">
@@ -548,11 +553,26 @@ const updateInventoryChart = () => {
 </template>
 
 <style scoped>
+.dashboard-container {
+  width: 100%;
+  overflow-x: hidden;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.chart-row {
+  width: 100%;
+  margin: 0 !important;
+  box-sizing: border-box;
+}
+
 .chart-card {
   background: #fff;
   border-radius: 8px;
   transition: all 0.3s;
   margin-bottom: 20px;
+  width: 100%;
+  max-width: 100%;
 }
 
 .chart-card:hover {
@@ -573,8 +593,9 @@ const updateInventoryChart = () => {
 
 .chart-container {
   width: 100%;
-  height: 400px;
+  height: 350px;
   padding: 10px;
+  box-sizing: border-box;
 }
 
 .loading-container {
@@ -583,5 +604,22 @@ const updateInventoryChart = () => {
   align-items: center;
   height: 500px;
   width: 100%;
+}
+
+.chart-col {
+  padding: 0 5px;
+  box-sizing: border-box;
+}
+
+/* 移除el-row的默认间距，防止溢出 */
+:deep(.el-row) {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  width: 100%;
+}
+
+:deep(.el-col) {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
 }
 </style>

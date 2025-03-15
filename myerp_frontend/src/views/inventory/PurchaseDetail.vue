@@ -3,7 +3,7 @@ import { onMounted, ref, reactive, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import inventoryHttp from '@/api/inventoryHttp'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowLeft, Refresh, Document, Timer } from '@element-plus/icons-vue'
+import { ArrowLeft, Refresh, Document, Timer, Edit } from '@element-plus/icons-vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -11,11 +11,16 @@ const purchases_id = route.params.id
 const purchaseData = ref(null)
 const loading = ref(false)
 const editVisible = ref(false)
+const editCostVisible = ref(false)
 const currentDetail = reactive({
   id: null,
   inventory: {},
   quantity: 0,
   oldQuantity: 0
+})
+const costForm = reactive({
+  total_cost: 0,
+  oldTotalCost: 0
 })
 
 // 计算总数量
@@ -65,6 +70,46 @@ const handleEdit = (row) => {
   currentDetail.oldQuantity = row.quantity
   currentDetail.quantity = row.quantity
   editVisible.value = true
+}
+
+// 打开编辑成本对话框
+const handleEditCost = () => {
+  if (!purchaseData.value) return
+  costForm.oldTotalCost = purchaseData.value.total_cost
+  costForm.total_cost = purchaseData.value.total_cost
+  editCostVisible.value = true
+}
+
+// 提交成本修改
+const handleSubmitCostEdit = () => {
+  if (costForm.total_cost === costForm.oldTotalCost) {
+    ElMessage.warning('成本未变更!')
+    return
+  }
+
+  if (costForm.total_cost < 0) {
+    ElMessage.warning('成本不能为负数!')
+    return
+  }
+
+  inventoryHttp
+    .updatePurchaseCost(purchases_id, {
+      total_cost: costForm.total_cost,
+    })
+    .then((result) => {
+      if (result.status == 200) {
+        ElMessage.success('修改成本成功!')
+        editCostVisible.value = false
+        fetchDetails()
+
+        // 如果有警告信息，显示给用户
+        if (result.data.warning) {
+          ElMessage.warning(result.data.warning)
+        }
+      } else {
+        ElMessage.error(result.data.detail || '修改成本失败!')
+      }
+    })
 }
 
 // 提交数量修改
@@ -160,9 +205,10 @@ onMounted(() => {
             <span class="label">发货总量：</span>
             <span class="value highlight">{{ totalQuantity }}件</span>
           </div>
-          <div class="summary-item">
+          <div class="summary-item cost-item">
             <span class="label">该次成本：</span>
             <span class="value highlight">{{ formatPrice(purchaseData.total_cost) }}</span>
+            <el-button type="primary" size="small" @click="handleEditCost" :icon="Edit" circle class="edit-cost-btn"></el-button>
           </div>
         </div>
       </div>
@@ -236,7 +282,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- 编辑对话框 -->
+    <!-- 编辑数量对话框 -->
     <el-dialog v-model="editVisible" title="修改数量" width="400px" destroy-on-close>
       <el-form label-width="100px">
         <el-form-item label="商品名称">
@@ -270,6 +316,45 @@ onMounted(() => {
       <template #footer>
         <el-button @click="editVisible = false">取消</el-button>
         <el-button type="primary" @click="handleSubmitEdit">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 编辑成本对话框 -->
+    <el-dialog v-model="editCostVisible" title="修改发货成本" width="400px" destroy-on-close>
+      <el-form label-width="100px">
+        <el-form-item label="原成本">
+          <span class="price">{{ formatPrice(costForm.oldTotalCost) }}</span>
+        </el-form-item>
+        <el-form-item label="新成本">
+          <el-input-number
+            v-model="costForm.total_cost"
+            :min="0"
+            :precision="2"
+            :step="100"
+            controls-position="right"
+            style="width: 100%"
+          >
+            <template #prefix>¥</template>
+          </el-input-number>
+        </el-form-item>
+        <el-form-item label="变更差额">
+          <span :class="{'total-price': costForm.total_cost > costForm.oldTotalCost, 'save-price': costForm.total_cost < costForm.oldTotalCost}">
+            {{ formatPrice(costForm.total_cost - costForm.oldTotalCost) }}
+            <el-tag v-if="costForm.total_cost > costForm.oldTotalCost" type="danger" size="small">增加</el-tag>
+            <el-tag v-if="costForm.total_cost < costForm.oldTotalCost" type="success" size="small">减少</el-tag>
+          </span>
+        </el-form-item>
+        <el-alert
+          type="warning"
+          :closable="false"
+          show-icon
+          title="注意：修改总成本不会影响单个商品的成本价格"
+          description="此操作仅修改本次发货的总成本记录，不会影响商品的单价和库存价值计算。"
+        />
+      </el-form>
+      <template #footer>
+        <el-button @click="editCostVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleSubmitCostEdit">确定</el-button>
       </template>
     </el-dialog>
   </div>
@@ -360,6 +445,16 @@ onMounted(() => {
   font-weight: bold;
 }
 
+.cost-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.edit-cost-btn {
+  margin-left: 8px;
+}
+
 .detail-card, .log-card {
   background-color: white;
   border-radius: 8px;
@@ -404,6 +499,11 @@ onMounted(() => {
 
 .total-price {
   color: #f56c6c;
+  font-weight: bold;
+}
+
+.save-price {
+  color: #67c23a;
   font-weight: bold;
 }
 

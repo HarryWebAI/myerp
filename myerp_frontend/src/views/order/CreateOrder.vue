@@ -581,6 +581,14 @@ const createClient = () => {
         if (result.status === 201 || result.status === 200) {
           // 将新客户添加到客户列表
           const newClient = result.data
+          console.log('新创建的客户信息:', newClient)
+
+          if (!newClient.uid) {
+            ElMessage.error('创建客户成功，但返回的客户信息不完整，请刷新页面后重试')
+            createClientFormVisible.value = false
+            return
+          }
+
           clients.value.unshift(newClient)
 
           // 自动选择新创建的客户

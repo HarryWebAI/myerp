@@ -74,12 +74,13 @@ watch(
 let details = reactive([])
 const addRow = () => {
   details.push({
-    inventory_id: 0,
+    inventory_id: null,
     quantity: 1,
   })
 }
 const deleteRow = (index) => {
   details.splice(index, 1)
+  selectedInventoryMap.value.delete(index)
 }
 
 /** 新增商品 */
@@ -92,6 +93,8 @@ let createInventoryFormData = reactive({
   color: '原色',
   cost: 0,
 })
+const currentEditingRowIndex = ref(-1)
+
 const createInventoryForm = ref()
 const createInventory = () => {
   if (createInventoryFormData.brand_id < 1) {
@@ -114,10 +117,18 @@ const createInventory = () => {
         if (result.status == 201) {
           inventories.value.unshift(result.data)
           ElMessage.success('创建商品成功!')
-          details.unshift({
-            inventory_id: result.data.id,
-            quantity: 1,
-          })
+
+          if (currentEditingRowIndex.value >= 0 && currentEditingRowIndex.value < details.length) {
+            details[currentEditingRowIndex.value].inventory_id = result.data.id
+            handleSelectChange(details[currentEditingRowIndex.value], currentEditingRowIndex.value, result.data.id)
+          } else {
+            details.unshift({
+              inventory_id: result.data.id,
+              quantity: 1,
+            })
+            handleSelectChange(details[0], 0, result.data.id)
+          }
+
           createInventoryFormVisable.value = false
         } else {
           ElMessage.error('创建失败!')
@@ -158,7 +169,9 @@ const InventoryFormRules = reactive({
 })
 
 /** 表单开关 */
-const openForm = () => {
+const openForm = (rowIndex) => {
+  currentEditingRowIndex.value = rowIndex !== undefined ? rowIndex : -1
+
   createInventoryFormData.name = ''
   createInventoryFormData.brand_id = filterForm.brand_id
   createInventoryFormData.category_id = 0
@@ -350,7 +363,7 @@ const getDisabledStatus = (inventoryId, rowIndex) => {
             >
               <el-option :value="0">
                 <div class="new-product-option">
-                  <el-button type="success" @click.stop="openForm()" :icon="Plus">
+                  <el-button type="success" @click.stop="openForm($index)" :icon="Plus">
                     首次采购？点击新增商品
                   </el-button>
                 </div>

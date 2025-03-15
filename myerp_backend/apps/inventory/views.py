@@ -671,6 +671,16 @@ class InventoryUploadView(APIView):
     
     def post(self, request):
         try:
+            # 验证当前系统中是否存在未出库的订单
+            from apps.order.models import Order
+            undelivered_orders = Order.objects.filter(delivery_status=1)  # 1表示新订单
+            if undelivered_orders.exists():
+                return Response({
+                    'detail': '系统中存在未出库的订单，请先完成所有订单出库操作再进行库存盘点',
+                    'order_count': undelivered_orders.count(),
+                    'order_numbers': list(undelivered_orders.values_list('order_number', flat=True))
+                }, status=status.HTTP_400_BAD_REQUEST)
+
             # 1. 验证文件是否存在
             if 'file' not in request.FILES:
                 return Response({'detail': '请上传文件'}, status=status.HTTP_400_BAD_REQUEST)
@@ -750,13 +760,11 @@ class InventoryUploadView(APIView):
                                 return 0
                             return int(float(value))
                         
-                        on_road = safe_convert_to_int(row.get('物流在途', 0))
+                        # 只统计in_stock库存数量，其他数量都设为0
                         in_stock = safe_convert_to_int(row.get('当前在库', 0))
-                        been_order = safe_convert_to_int(row.get('已被订购', 0))
-                        sold = safe_convert_to_int(row.get('已售出', 0))
                         
                         # 验证数值是否为负数
-                        if any(x < 0 for x in [cost, on_road, in_stock, been_order, sold]):
+                        if cost < 0 or in_stock < 0:
                             return Response({
                                 'detail': f'第{index + 1}行存在负数，所有数值必须大于等于0'
                             }, status=status.HTTP_400_BAD_REQUEST)
@@ -774,10 +782,10 @@ class InventoryUploadView(APIView):
                         size=str(row['规格']),
                         color=str(row['颜色']),
                         cost=cost,
-                        on_road=on_road,
-                        in_stock=in_stock,
-                        been_order=been_order,
-                        sold=sold
+                        on_road=0,  # 物流在途设为0
+                        in_stock=in_stock,  # 只保留当前在库数量
+                        been_order=0,  # 已被订购设为0
+                        sold=0  # 已售出设为0
                     )
                     inventory_objects.append(inventory)
                 
@@ -825,7 +833,7 @@ class InventoryUploadView(APIView):
                     )
                 
             return Response({
-                'detail': f'成功导入{len(inventory_objects)}条库存记录',
+                'detail': f'成功导入{len(inventory_objects)}条库存记录，所有库存仅保留当前在库数量，其他数量已重置为0',
                 'count': len(inventory_objects)
             }, status=status.HTTP_201_CREATED)
             
@@ -843,3 +851,78 @@ class InventoryLogView(APIView):
         queryset = models.InventoryLog.objects.order_by('-create_time').all()
         serializer = serializers.InventoryLogSerializer(queryset, many=True)
         return Response(serializer.data)
+
+class PurchaseCostUpdateView(APIView):
+    """
+    采购成本修正接口
+    """
+    permission_classes = [IsAuthenticated,IsBoss]
+    
+    @transaction.atomic
+    def put(self, request, id):
+        try:
+            # 1. 获取并验证输入数据
+            new_total_cost = request.data.get('total_cost')
+            if new_total_cost is None:
+                return Response({'detail': '必须提供新的总成本'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            try:
+                new_total_cost = float(new_total_cost)
+                if new_total_cost < 0:
+                    raise ValueError
+            except (ValueError, TypeError):
+                return Response({'detail': '总成本必须为非负数'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 2. 锁定并获取采购单
+            purchase = models.Purchase.objects.select_for_update().get(id=id)
+            old_total_cost = purchase.total_cost
+            
+            # 如果成本没有变化，直接返回
+            if float(old_total_cost) == new_total_cost:
+                return Response({'detail': '总成本未变更'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # 3. 检查是否已有收货记录
+            has_received = models.ReceiveDetail.objects.filter(
+                inventory__in=models.PurchaseDetail.objects.filter(purchase=purchase).values('inventory'),
+                receive__create_time__gt=purchase.create_time
+            ).exists()
+            
+            # 如果已有收货记录，提示用户但仍允许修改
+            warning_message = ""
+            if has_received:
+                warning_message = "警告：该采购单已有收货记录，修改成本可能导致数据不一致"
+            
+            # 4. 更新采购单总成本
+            purchase.total_cost = new_total_cost
+            purchase.save(update_fields=['total_cost'])
+            
+            # 5. 创建采购修正日志
+            log_content = f"用户{request.user.name}于{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}修改了采购单总成本\n"
+            log_content += f"原总成本：{old_total_cost}元\n"
+            log_content += f"新总成本：{new_total_cost}元\n"
+            log_content += f"变化：{new_total_cost - float(old_total_cost)}元"
+            
+            models.PurchaseLog.objects.create(
+                purchase=purchase,
+                content=log_content,
+                operator=request.user
+            )
+            
+            response_data = {
+                'detail': '采购总成本更新成功',
+                'old_total_cost': str(old_total_cost),
+                'new_total_cost': str(new_total_cost),
+                'diff': str(new_total_cost - float(old_total_cost))
+            }
+            
+            if warning_message:
+                response_data['warning'] = warning_message
+                
+            return Response(response_data)
+            
+        except models.Purchase.DoesNotExist:
+            return Response({'detail': '找不到指定的采购单'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'detail': f'修改失败：{str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+

@@ -299,6 +299,21 @@ const resetPassword = () => {
 .main-container {
   background-color: #fdfdfd;
   height: 100vh;
+  overflow: hidden;
+  display: flex;
+}
+
+.side-bar {
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.main-body {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .brand {
@@ -314,6 +329,18 @@ const resetPassword = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-shrink: 0;
+}
+
+.el-main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.el-footer {
+  flex-shrink: 0;
 }
 
 /* 版权声明样式 */
@@ -321,7 +348,7 @@ const resetPassword = () => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 15px 0;
+  padding: 10px 0;
 }
 
 .copyright-line {

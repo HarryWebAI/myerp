@@ -52,7 +52,8 @@ class ClientCreateSerializer(serializers.ModelSerializer):
     """客户创建序列化器"""
     class Meta:
         model = Client
-        fields = ['name', 'telephone', 'address', 'remark', 'level', 'staff']
+        fields = ['uid', 'name', 'telephone', 'address', 'remark', 'level', 'staff']
+        read_only_fields = ['uid']
     
     def create(self, validated_data):
         # 创建客户时，设置最后跟进时间为当前时间

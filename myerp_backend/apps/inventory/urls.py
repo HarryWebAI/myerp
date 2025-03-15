@@ -15,6 +15,7 @@ urlpatterns = [
                   path('purchase/detail/<int:id>/', views.PurchaseDetailView.as_view(), name='purchase-detail'),
                   path('purchase/detail/update/<int:id>/', views.PurchaseDetailUpdateView.as_view(), name='purchase-detail-update'),
                   path('purchase/detail/delete/<int:id>/', views.PurchaseDetailDeleteView.as_view(), name='purchase-detail-delete'),
+                  path('purchase/cost/update/<int:id>/', views.PurchaseCostUpdateView.as_view(), name='purchase-cost-update'),
                   path('receive/', views.ReceiveView.as_view(), name='receive'),
                   path('receive/list/', views.ReceiveList.as_view()),
                   path('receive/detail/<int:id>', views.ReceiveDetailView.as_view()),
