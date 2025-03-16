@@ -12,4 +12,10 @@ class CategoryModelViewSet(viewsets.mixins.CreateModelMixin,
                            viewsets.GenericViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = [IsAuthenticated, IsBoss]
+
+    def get_permissions(self):
+        if self.action == 'list':
+            permission_classes = [IsAuthenticated]
+        else:
+            permission_classes = [IsAuthenticated, IsBoss]
+        return [permission() for permission in permission_classes]
