@@ -9,7 +9,7 @@ from apps.brand.models import Brand
 class Installer(models.Model):
     """安装人员模型"""
     name = models.CharField(max_length=30, verbose_name='姓名')
-    telephone = models.CharField(max_length=20, verbose_name='联系电话')
+    telephone = models.CharField(max_length=20, verbose_name='联系电话', unique=True)
     
     class Meta:
         verbose_name = '安装人员'

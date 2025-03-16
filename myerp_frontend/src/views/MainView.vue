@@ -120,7 +120,7 @@ const resetPassword = () => {
           </el-icon>
           <span>系统管理</span>
         </template>
-        <el-menu-item index="3-1" :route="{ name: 'brandandcategory' }">
+        <el-menu-item index="3-1" :route="{ name: 'brandandcategory' }" v-if="authStore.hasPermission('staff_management')">
           <el-icon>
             <Menu />
           </el-icon>

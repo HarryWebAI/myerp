@@ -19,7 +19,7 @@ class Client(models.Model):
     
     uid = ShortUUIDField(primary_key=True)
     name = models.CharField(max_length=30, verbose_name='客户姓名')
-    telephone = models.CharField(max_length=20, verbose_name='联系电话')
+    telephone = models.CharField(max_length=20, verbose_name='联系电话', null=True, blank=True, unique=True)
     address = models.CharField(max_length=200, verbose_name='详细住址')
     remark = models.TextField(blank=True, null=True, verbose_name='备注信息')
     level = models.IntegerField(choices=LEVEL_CHOICES, default=1, verbose_name='客户级别')

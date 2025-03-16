@@ -12,4 +12,4 @@ class CategoryModelViewSet(viewsets.mixins.CreateModelMixin,
                            viewsets.GenericViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsBoss]

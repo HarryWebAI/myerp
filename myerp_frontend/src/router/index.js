@@ -26,9 +26,10 @@ const router = createRouter({
       path: '/',
       name: 'main',
       component: MainView,
+      redirect: { name: 'home' },
       children: [
         {
-          path: '',
+          path: '/',
           name: 'home',
           component: HomeView,
           meta: { requiresAuth: true }
@@ -40,7 +41,7 @@ const router = createRouter({
               path: 'brandandcategory',
               name: 'brandandcategory',
               component: BrandAndCategoryView,
-              meta: { requiresAuth: true, roles: ['is_boss', 'is_manager'] }
+              meta: { requiresAuth: true, roles: ['is_boss'] }
             },
             {
               path: 'installer',

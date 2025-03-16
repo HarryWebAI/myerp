@@ -14,4 +14,4 @@ class BrandModelViewSet(viewsets.mixins.CreateModelMixin,
     """
     queryset = Brand.objects.all()
     serializer_class = BrandSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsBoss]

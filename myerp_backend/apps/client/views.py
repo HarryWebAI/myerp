@@ -34,7 +34,7 @@ class ClientModelViewSet(viewsets.GenericViewSet,
     """
     queryset = Client.objects.all()
     serializer_class = ClientListSerializer
-    permission_classes = [IsAuthenticated, IsBoss | IsManager]
+    permission_classes = [IsAuthenticated]
     pagination_class = ClientPagination
     
     def get_queryset(self):
